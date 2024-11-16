@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: kpetrosyan
+      changes:
+        - sqlFile:
+            dbms: postgresql
+            path: changeset/create_registrations.sql
+            relativeToChangelogFile: true
