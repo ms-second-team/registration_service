@@ -1,6 +1,7 @@
 package ru.ms.second.team.registration.mapper;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
 import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
 import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
@@ -8,19 +9,20 @@ import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDt
 import ru.ms.second.team.registration.model.Registration;
 
 @Slf4j
+@Component
 public class RegistrationMapper {
-    public static Registration toRegistration(NewRegistrationDto registrationDto, String password) {
+    public Registration toRegistration(NewRegistrationDto registrationDto, String password) {
         log.info("RegistrationMapper: mapping NewRegistrationDto to Registration");
         return Registration.builder()
-                .email(registrationDto.getEmail())
-                .phone(registrationDto.getPhone())
-                .eventId(registrationDto.getEventId())
+                .email(registrationDto.email())
+                .phone(registrationDto.phone())
+                .eventId(registrationDto.eventId())
                 .password(password)
-                .username(registrationDto.getUsername())
+                .username(registrationDto.username())
                 .build();
     }
 
-    public static UpdatedRegistrationResponseDto toUpdatedDto(Registration registration) {
+    public UpdatedRegistrationResponseDto toUpdatedDto(Registration registration) {
         log.info("RegistrationMapper: mapping Registration to UpdatedRegistrationResponseDto");
         return UpdatedRegistrationResponseDto.builder()
                 .id(registration.getId())
@@ -30,14 +32,14 @@ public class RegistrationMapper {
                 .build();
     }
 
-    public static CreatedRegistrationResponseDto toCreatedDto(Registration registration) {
+    public CreatedRegistrationResponseDto toCreatedDto(Registration registration) {
         log.info("RegistrationMapper: mapping Registration to CreatedRegistrationResponseDto");
         return CreatedRegistrationResponseDto.builder()
                 .username(registration.getUsername())
                 .password(registration.getPassword()).build();
     }
 
-    public static RegistrationResponseDto toRegistrationResponseDto(Registration registration) {
+    public RegistrationResponseDto toRegistrationResponseDto(Registration registration) {
         log.info("RegistrationMapper: mapping Registration to RegistrationResponseDto");
         return RegistrationResponseDto.builder()
                 .email(registration.getEmail())

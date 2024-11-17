@@ -46,8 +46,8 @@ public class RegistrationController {
     }
 
     @GetMapping
-    public List<RegistrationResponseDto> findAllByEventId(@RequestParam(defaultValue = "0") @Min(0) Integer page,
-                                                          @RequestParam(defaultValue = "10") @Min(1) Integer size,
+    public List<RegistrationResponseDto> findAllByEventId(@RequestParam(defaultValue = "0") @Min(0) int page,
+                                                          @RequestParam(defaultValue = "10") @Positive int size,
                                                           @RequestParam @Positive Long eventId) {
         log.info("RegistrationController: GET /registrations, params page={}, size={}, eventId={}",
                 page, size, eventId);

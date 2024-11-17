@@ -29,29 +29,30 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class RegistrationServiceImpl implements RegistrationService {
     private final JpaRegistrationRepository registrationRepository;
+    private final RegistrationMapper mapper;
 
     @Transactional
     @Override
     public CreatedRegistrationResponseDto create(NewRegistrationDto creationDto) {
         log.info("RegistrationService: executing create method. Username {}, email {}, phone {}, eventId {}",
-                creationDto.getUsername(), creationDto.getEmail(), creationDto.getPhone(), creationDto.getEventId());
-        Registration registration = RegistrationMapper.toRegistration(creationDto, generatePassword());
-        return RegistrationMapper.toCreatedDto(registrationRepository.save(registration));
+                creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
+        Registration registration = mapper.toRegistration(creationDto, generatePassword());
+        return mapper.toCreatedDto(registrationRepository.save(registration));
     }
 
     @Transactional
     @Override
     public UpdatedRegistrationResponseDto update(UpdateRegistrationDto updateDto) {
-        log.info("RegistrationService: executing update method. Updating registration with id {}", updateDto.getId());
-        Registration registration = findRegistrationOrThrow(updateDto.getId());
-        checkPasswordOrThrow(registration.getPassword(), updateDto.getPassword());
-        return RegistrationMapper.toUpdatedDto(registrationRepository.save(doTheUpdate(registration, updateDto)));
+        log.info("RegistrationService: executing update method. Updating registration with id {}", updateDto.id());
+        Registration registration = findRegistrationOrThrow(updateDto.id());
+        checkPasswordOrThrow(registration.getPassword(), updateDto.password());
+        return mapper.toUpdatedDto(registrationRepository.save(doTheUpdate(registration, updateDto)));
     }
 
     @Override
     public RegistrationResponseDto findById(Long id) {
         log.info("RegistrationService: executing findById method. Id={}", id);
-        return RegistrationMapper.toRegistrationResponseDto(findRegistrationOrThrow(id));
+        return mapper.toRegistrationResponseDto(findRegistrationOrThrow(id));
     }
 
     @Override
@@ -65,7 +66,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         }
 
         return registrations.getContent().stream()
-                .map(RegistrationMapper::toRegistrationResponseDto)
+                .map(mapper::toRegistrationResponseDto)
                 .toList();
     }
 
@@ -73,22 +74,22 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Transactional
     public void delete(DeleteRegistrationDto deleteDto) {
         log.info("RegistrationService: executing delete method. Deleting registration id={}",
-                deleteDto.getId());
-        Registration registration = findRegistrationOrThrow(deleteDto.getId());
-        checkPasswordOrThrow(registration.getPassword(), deleteDto.getPassword());
-        registrationRepository.deleteById(deleteDto.getId());
+                deleteDto.id());
+        Registration registration = findRegistrationOrThrow(deleteDto.id());
+        checkPasswordOrThrow(registration.getPassword(), deleteDto.password());
+        registrationRepository.deleteById(deleteDto.id());
     }
 
     private Registration doTheUpdate(Registration registration, UpdateRegistrationDto updateDto) {
         log.info("RegistrationService: executing doTheUpdate method");
-        if (updateDto.getUsername() != null) {
-            registration.setUsername(updateDto.getUsername());
+        if (updateDto.username() != null) {
+            registration.setUsername(updateDto.username());
         }
-        if (updateDto.getEmail() != null) {
-            registration.setEmail(updateDto.getEmail());
+        if (updateDto.email() != null) {
+            registration.setEmail(updateDto.email());
         }
-        if (updateDto.getPhone() != null) {
-            registration.setPhone(updateDto.getPhone());
+        if (updateDto.phone() != null) {
+            registration.setPhone(updateDto.phone());
         }
         return registration;
     }
