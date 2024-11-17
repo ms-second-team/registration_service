@@ -40,8 +40,6 @@ public class RegistrationServiceImplMockTest {
     @Mock
     private RegistrationMapper mapper;
 
-    private NewRegistrationDto newRegistrationDto;
-    private CreatedRegistrationResponseDto createdRegistrationResponseDto;
     private UpdateRegistrationDto updateRegistrationDto;
     private UpdatedRegistrationResponseDto updatedRegistrationResponseDto;
     private DeleteRegistrationDto deleteRegistrationDto;
@@ -51,13 +49,12 @@ public class RegistrationServiceImplMockTest {
     @Test
     @DisplayName("Created registration")
     void createRegistration() {
-        newRegistrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+        NewRegistrationDto newRegistrationDto = createNewRegistrationDto();
         registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535", 1L, "1234");
-        createdRegistrationResponseDto = createNewRegistrationResponseDto("user1");
+                1L, "user1", "mail@mail.com", "78005553535");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto(registration.getId());
         Registration registrationFromMapper = createRegistration(
-                0L, "user1", "mail@mail.com", "78005553535", 1L, "1234");
+                0L, "user1", "mail@mail.com", "78005553535");
 
         when(mapper.toRegistration(any(NewRegistrationDto.class), anyString())).thenReturn(registrationFromMapper);
         when(mapper.toCreatedDto(any(Registration.class))).thenReturn(createdRegistrationResponseDto);
@@ -65,7 +62,7 @@ public class RegistrationServiceImplMockTest {
 
         CreatedRegistrationResponseDto result = registrationService.create(newRegistrationDto);
 
-        assertEquals(result.username(), createdRegistrationResponseDto.username(), "usernames must be same");
+        assertEquals(result.id(), createdRegistrationResponseDto.id(), "id's must be same");
         assertEquals(result.password(), registration.getPassword(), "passwords must be same");
 
         verify(mapper, times(1)).toRegistration(any(NewRegistrationDto.class), anyString());
@@ -77,12 +74,12 @@ public class RegistrationServiceImplMockTest {
     @DisplayName("Updated registration username successfully")
     void updateRegistrationUsername() {
         updateRegistrationDto =
-                createUpdateRegistrationDto("user2", null, null, 1L, "1234");
+                createUpdateRegistrationDto("user2", null, null, "1234");
         registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535", 1L, "1234"
+                1L, "user1", "mail@mail.com", "78005553535"
         );
         Registration updatedRegistration = createRegistration(
-                1L, "user2", "mail@mail.com", "78005553535", 1L, "1234"
+                1L, "user2", "mail@mail.com", "78005553535"
         );
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user2", "mail@mail.com", "78005553535");
@@ -106,12 +103,12 @@ public class RegistrationServiceImplMockTest {
     @DisplayName("Updated registration email successfully")
     void updateRegistrationEmail() {
         updateRegistrationDto =
-                createUpdateRegistrationDto(null, "mail@gmail.com", null, 1L, "1234");
+                createUpdateRegistrationDto(null, "mail@gmail.com", null, "1234");
         registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535", 1L, "1234"
+                1L, "user1", "mail@mail.com", "78005553535"
         );
         Registration updatedRegistration = createRegistration(
-                1L, "user1", "mail@gmail.com", "78005553535", 1L, "1234"
+                1L, "user1", "mail@gmail.com", "78005553535"
         );
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "mail@gmail.com", "78005553535");
@@ -135,12 +132,12 @@ public class RegistrationServiceImplMockTest {
     @DisplayName("Updated registration phone successfully")
     void updateRegistrationPhone() {
         updateRegistrationDto =
-                createUpdateRegistrationDto(null, null, "70123456789", 1L, "1234");
+                createUpdateRegistrationDto(null, null, "70123456789", "1234");
         registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535", 1L, "1234"
+                1L, "user1", "mail@mail.com", "78005553535"
         );
         Registration updatedRegistration = createRegistration(
-                1L, "user1", "mail@mail.com", "70123456789", 1L, "1234"
+                1L, "user1", "mail@mail.com", "70123456789"
         );
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "mail@mail.com", "70123456789");
@@ -164,13 +161,13 @@ public class RegistrationServiceImplMockTest {
     @DisplayName("Updated registration username, email and phone successfully")
     void updateRegistrationUsernameEmailPhone() {
         updateRegistrationDto = createUpdateRegistrationDto(
-                "user2", "mail@gmail.com", "70123456789", 1L, "1234"
+                "user2", "mail@gmail.com", "70123456789", "1234"
         );
         registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535", 1L, "1234"
+                1L, "user1", "mail@mail.com", "78005553535"
         );
         Registration updatedRegistration = createRegistration(
-                1L, "user2", "mail@gmail.com", "70123456789", 1L, "1234"
+                1L, "user2", "mail@gmail.com", "70123456789"
         );
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user2", "mail@gmail.com", "70123456789");
@@ -194,16 +191,14 @@ public class RegistrationServiceImplMockTest {
     @DisplayName("Update registration failed due to incorrect password")
     void updateRegistrationFailIncorrectPassword() {
         updateRegistrationDto =
-                createUpdateRegistrationDto("user2", null, null, 1L, "4321");
+                createUpdateRegistrationDto("user2", null, null, "4321");
         registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535", 1L, "1234"
+                1L, "user1", "mail@mail.com", "78005553535"
         );
 
         when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
 
-        assertThrows(PasswordIncorrectException.class, () -> {
-            registrationService.update(updateRegistrationDto);
-        });
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.update(updateRegistrationDto));
 
         verify(repository, times(1)).findById(anyLong());
     }
@@ -212,10 +207,10 @@ public class RegistrationServiceImplMockTest {
     @DisplayName("Registration successfully retrieved")
     void findRegistrationById() {
         registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535", 1L, "1234"
+                1L, "user1", "mail@mail.com", "78005553535"
         );
         registrationResponseDto =
-                createResponseDto(registration.getUsername(), registration.getEmail(), registration.getPhone(), 1L);
+                createResponseDto(registration.getUsername(), registration.getEmail(), registration.getPhone());
 
         when(mapper.toRegistrationResponseDto(any(Registration.class))).thenReturn(registrationResponseDto);
         when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
@@ -235,9 +230,7 @@ public class RegistrationServiceImplMockTest {
     void getRegistrationFailNotFound() {
         when(repository.findById(anyLong())).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> {
-            registrationService.findById(1L);
-        });
+        assertThrows(NotFoundException.class, () -> registrationService.findById(1L));
 
         verify(repository, times(1)).findById(anyLong());
     }
@@ -246,10 +239,10 @@ public class RegistrationServiceImplMockTest {
     @DisplayName("Retrieve all registrations by event id successfully")
     void getAllRegistrationsByEventId() {
         registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535", 1L, "1234"
+                1L, "user1", "mail@mail.com", "78005553535"
         );
         registrationResponseDto =
-                createResponseDto(registration.getUsername(), registration.getEmail(), registration.getPhone(), 1L);
+                createResponseDto(registration.getUsername(), registration.getEmail(), registration.getPhone());
         Page<Registration> page = new PageImpl(List.of(registration));
 
 
@@ -281,9 +274,9 @@ public class RegistrationServiceImplMockTest {
     @Test
     @DisplayName("Delete registration successfully")
     void deleteRegistrationById() {
-        deleteRegistrationDto = createDeleteRegistrationDto(1L, "1234");
+        deleteRegistrationDto = createDeleteRegistrationDto("1234");
         registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535", 1L, "1234"
+                1L, "user1", "mail@mail.com", "78005553535"
         );
 
         when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
@@ -297,16 +290,14 @@ public class RegistrationServiceImplMockTest {
     @Test
     @DisplayName("Deletion failed due to incorrect password")
     void deleteFailIncorrectPassword() {
-        deleteRegistrationDto = createDeleteRegistrationDto(1L, "4321");
+        deleteRegistrationDto = createDeleteRegistrationDto("4321");
         registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535", 1L, "1234"
+                1L, "user1", "mail@mail.com", "78005553535"
         );
 
         when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
 
-        assertThrows(PasswordIncorrectException.class, () -> {
-            registrationService.delete(deleteRegistrationDto);
-        });
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.delete(deleteRegistrationDto));
 
         verify(repository, times(1)).findById(anyLong());
         verify(repository, never()).deleteById(deleteRegistrationDto.id());
@@ -315,38 +306,36 @@ public class RegistrationServiceImplMockTest {
     @Test
     @DisplayName("Deletion failed due to object was not found")
     void deleteFailNotFound() {
-        deleteRegistrationDto = createDeleteRegistrationDto(1L, "4321");
+        deleteRegistrationDto = createDeleteRegistrationDto("4321");
 
         when(repository.findById(anyLong())).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> {
-            registrationService.delete(deleteRegistrationDto);
-        });
+        assertThrows(NotFoundException.class, () -> registrationService.delete(deleteRegistrationDto));
 
         verify(repository, times(1)).findById(anyLong());
         verify(repository, never()).deleteById(deleteRegistrationDto.id());
     }
 
-    private NewRegistrationDto createNewRegistrationDto(String username, String email, String phone, Long eventId) {
+    private NewRegistrationDto createNewRegistrationDto() {
         return NewRegistrationDto.builder()
-                .email(email)
-                .eventId(eventId)
-                .phone(phone)
-                .username(username)
+                .email("mail@mail.com")
+                .eventId(1L)
+                .phone("78005553535")
+                .username("user1")
                 .build();
     }
 
-    private CreatedRegistrationResponseDto createNewRegistrationResponseDto(String username) {
+    private CreatedRegistrationResponseDto createNewRegistrationResponseDto(Long id) {
         return CreatedRegistrationResponseDto.builder()
                 .password("1234")
-                .username(username)
+                .id(id)
                 .build();
     }
 
     private UpdateRegistrationDto createUpdateRegistrationDto(
-            String username, String email, String phone, Long id, String password) {
+            String username, String email, String phone, String password) {
         return UpdateRegistrationDto.builder()
-                .id(id)
+                .id(1L)
                 .password(password)
                 .username(username)
                 .email(email)
@@ -362,17 +351,17 @@ public class RegistrationServiceImplMockTest {
                 .build();
     }
 
-    private DeleteRegistrationDto createDeleteRegistrationDto(Long id, String password) {
+    private DeleteRegistrationDto createDeleteRegistrationDto(String password) {
         return DeleteRegistrationDto.builder()
-                .id(id)
+                .id(1L)
                 .password(password).build();
     }
 
-    private RegistrationResponseDto createResponseDto(String username, String email, String phone, Long eventId) {
+    private RegistrationResponseDto createResponseDto(String username, String email, String phone) {
         return RegistrationResponseDto.builder()
                 .username(username)
                 .phone(phone)
-                .eventId(eventId)
+                .eventId(1L)
                 .email(email)
                 .build();
     }
@@ -380,16 +369,14 @@ public class RegistrationServiceImplMockTest {
     private Registration createRegistration(Long id,
                                             String userName,
                                             String email,
-                                            String phone,
-                                            Long eventId,
-                                            String password) {
+                                            String phone) {
         return Registration.builder()
                 .id(id)
                 .username(userName)
                 .email(email)
                 .phone(phone)
-                .eventId(eventId)
-                .password(password)
+                .eventId(1L)
+                .password("1234")
                 .build();
     }
 

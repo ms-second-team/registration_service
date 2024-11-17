@@ -35,7 +35,7 @@ public class RegistrationMapper {
     public CreatedRegistrationResponseDto toCreatedDto(Registration registration) {
         log.info("RegistrationMapper: mapping Registration to CreatedRegistrationResponseDto");
         return CreatedRegistrationResponseDto.builder()
-                .username(registration.getUsername())
+                .id(registration.getId())
                 .password(registration.getPassword()).build();
     }
 

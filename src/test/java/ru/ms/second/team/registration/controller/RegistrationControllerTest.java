@@ -18,7 +18,6 @@ import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDt
 import ru.ms.second.team.registration.service.RegistrationService;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.hamcrest.Matchers.is;
@@ -38,7 +37,6 @@ public class RegistrationControllerTest {
     RegistrationService registrationService;
 
     private NewRegistrationDto newRegistrationDto;
-    private CreatedRegistrationResponseDto createdRegistrationResponseDto;
     private UpdateRegistrationDto updateRegistrationDto;
     private UpdatedRegistrationResponseDto updatedRegistrationResponseDto;
     private DeleteRegistrationDto deleteRegistrationDto;
@@ -50,7 +48,7 @@ public class RegistrationControllerTest {
     void createRegistrationOk() {
         newRegistrationDto =
                 createNewRegistrationDto("user1", "email@mail.com", "78005553535", 1L);
-        createdRegistrationResponseDto = createNewRegistrationResponseDto("user1");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
         when(registrationService.create(newRegistrationDto)).thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
@@ -58,7 +56,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.username", is(createdRegistrationResponseDto.username())))
+                .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.password", is(createdRegistrationResponseDto.password())));
         verify(registrationService, times(1)).create(newRegistrationDto);
     }
@@ -130,7 +128,7 @@ public class RegistrationControllerTest {
         updateRegistrationDto =
                 createUpdateRegistrationDto("user2", null, null, 1L, "1234");
         updatedRegistrationResponseDto =
-                createUpdateResponseDto("user2", "email@mail.com", "78005553535");
+                createUpdateResponseDto("user2", "email@mail.com");
         when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
@@ -151,7 +149,7 @@ public class RegistrationControllerTest {
         updateRegistrationDto =
                 createUpdateRegistrationDto(null, "mail@mail.com", null, 1L, "1234");
         updatedRegistrationResponseDto =
-                createUpdateResponseDto("user1", "mail@mail.com", "78005553535");
+                createUpdateResponseDto("user1", "mail@mail.com");
         when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
@@ -172,7 +170,7 @@ public class RegistrationControllerTest {
         updateRegistrationDto =
                 createUpdateRegistrationDto(null, null, "78005553535", 1L, "1234");
         updatedRegistrationResponseDto =
-                createUpdateResponseDto("user1", "email@mail.com", "78005553535");
+                createUpdateResponseDto("user1", "email@mail.com");
         when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
@@ -193,7 +191,7 @@ public class RegistrationControllerTest {
         updateRegistrationDto =
                 createUpdateRegistrationDto("user1", "email@mail.com", null, 1L, "1234");
         updatedRegistrationResponseDto =
-                createUpdateResponseDto("user1", "email@mail.com", "78005553535");
+                createUpdateResponseDto("user1", "email@mail.com");
         when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
@@ -214,7 +212,7 @@ public class RegistrationControllerTest {
         updateRegistrationDto =
                 createUpdateRegistrationDto("user1", null, "78005553535", 1L, "1234");
         updatedRegistrationResponseDto =
-                createUpdateResponseDto("user1", "email@mail.com", "78005553535");
+                createUpdateResponseDto("user1", "email@mail.com");
         when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
@@ -235,7 +233,7 @@ public class RegistrationControllerTest {
         updateRegistrationDto = createUpdateRegistrationDto(
                 null, "email@mail.com", "78005553535", 1L, "1234");
         updatedRegistrationResponseDto =
-                createUpdateResponseDto("user1", "email@mail.com", "78005553535");
+                createUpdateResponseDto("user1", "email@mail.com");
         when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
@@ -256,7 +254,7 @@ public class RegistrationControllerTest {
         updateRegistrationDto = createUpdateRegistrationDto(
                 "user1", "email@mail.com", "78005553535", 1L, "1234");
         updatedRegistrationResponseDto =
-                createUpdateResponseDto("user1", "email@mail.com", "78005553535");
+                createUpdateResponseDto("user1", "email@mail.com");
         when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
@@ -365,7 +363,7 @@ public class RegistrationControllerTest {
     @DisplayName("Registration with id=1 retrieved successfully")
     void getRegistrationById() {
         registrationResponseDto =
-                createResponseDto("user1", "email@mail.com", "78005553535", 1L);
+                createResponseDto();
         when(registrationService.findById(any())).thenReturn(registrationResponseDto);
         mvc.perform(get("/registrations/1")
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -397,7 +395,7 @@ public class RegistrationControllerTest {
     @DisplayName("Registrations for Event retrieved successfully")
     void getRegistrationsForEvent() {
         registrationResponseDto =
-                createResponseDto("user1", "email@mail.com", "78005553535", 1L);
+                createResponseDto();
         when(registrationService.findAllByEventId(anyInt(), anyInt(), anyLong())).thenReturn(List.of(registrationResponseDto));
         mvc.perform(get("/registrations?eventId=1")
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -512,10 +510,10 @@ public class RegistrationControllerTest {
                 .build();
     }
 
-    private CreatedRegistrationResponseDto createNewRegistrationResponseDto(String username) {
+    private CreatedRegistrationResponseDto createNewRegistrationResponseDto() {
         return CreatedRegistrationResponseDto.builder()
                 .password("1234")
-                .username(username)
+                .id(1L)
                 .build();
     }
 
@@ -530,11 +528,11 @@ public class RegistrationControllerTest {
                 .build();
     }
 
-    private UpdatedRegistrationResponseDto createUpdateResponseDto(String username, String email, String phone) {
+    private UpdatedRegistrationResponseDto createUpdateResponseDto(String username, String email) {
         return UpdatedRegistrationResponseDto.builder()
                 .username(username)
                 .email(email)
-                .phone(phone)
+                .phone("78005553535")
                 .build();
     }
 
@@ -544,12 +542,12 @@ public class RegistrationControllerTest {
                 .password(password).build();
     }
 
-    private RegistrationResponseDto createResponseDto(String username, String email, String phone, Long eventId) {
+    private RegistrationResponseDto createResponseDto() {
         return RegistrationResponseDto.builder()
-                .username(username)
-                .phone(phone)
-                .eventId(eventId)
-                .email(email)
+                .username("user1")
+                .phone("78005553535")
+                .eventId(1L)
+                .email("email@mail.com")
                 .build();
     }
 }
