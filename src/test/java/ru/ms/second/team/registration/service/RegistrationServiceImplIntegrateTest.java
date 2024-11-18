@@ -3,8 +3,10 @@ package ru.ms.second.team.registration.service;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.ms.second.team.registration.dto.request.DeleteRegistrationDto;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
 import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
@@ -20,9 +22,13 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@Transactional
+@Testcontainers
 public class RegistrationServiceImplIntegrateTest {
+
+    @Container
+    @ServiceConnection
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:14-alpine");
+
     @Autowired
     RegistrationServiceImpl registrationService;
 
@@ -153,12 +159,12 @@ public class RegistrationServiceImplIntegrateTest {
         Retrieves all registrations for event. Only one registration exists
          */
         NewRegistrationDto registrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 9999999999999L);
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 2L);
 
         registrationService.create(registrationDto);
 
         List<RegistrationResponseDto> oneRegistrationList =
-                registrationService.findAllByEventId(0, 10, 9999999999999L);
+                registrationService.findAllByEventId(0, 10, 2L);
 
         assertEquals(1, oneRegistrationList.size(),
                 "There is only 1 registration for that event");
@@ -170,18 +176,13 @@ public class RegistrationServiceImplIntegrateTest {
 
     @Test
     void findRegistrationsByEventIdTwoRegistrations() {
-        NewRegistrationDto registrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 9999999999999L);
-
-        registrationService.create(registrationDto);
-
         NewRegistrationDto registrationDto2 =
-                createNewRegistrationDto("user2", "mail2@mail.com", "78885553535", 9999999999999L);
+                createNewRegistrationDto("user2", "mail2@mail.com", "78885553535", 2L);
 
         registrationService.create(registrationDto2);
 
         List<RegistrationResponseDto> registrationsList =
-                registrationService.findAllByEventId(0, 10, 9999999999999L);
+                registrationService.findAllByEventId(0, 10, 2L);
 
         assertEquals(2, registrationsList.size(), "There are only 2 registrations for that event");
     }
