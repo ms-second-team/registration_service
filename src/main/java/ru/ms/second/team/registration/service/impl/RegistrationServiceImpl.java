@@ -102,12 +102,8 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     private String generatePassword() {
-        StringBuilder sb = new StringBuilder();
-        String chars = "0123456789";
         SecureRandom random = new SecureRandom();
-        for (int i = 0; i < 4; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
-        }
-        return sb.toString();
+        int password = random.nextInt(1000, 10000);
+        return Integer.toString(password);
     }
 }
