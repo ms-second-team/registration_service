@@ -20,13 +20,13 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @Transactional
 public class RegistrationServiceImplIntegrateTest {
     @Autowired
     RegistrationServiceImpl registrationService;
 
     @Test
-    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void createRegistration() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
@@ -38,15 +38,12 @@ public class RegistrationServiceImplIntegrateTest {
     }
 
     @Test
-    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
-    void updateRegistration() {
+    void updateRegistrationUsernameSuccess() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
 
         CreatedRegistrationResponseDto registration = registrationService.create(registrationDto);
-        /*
-        Updating field username. Success
-        */
+
         UpdateRegistrationDto updateUsername = createUpdateRegistrationDto(
                 "user2", null, null, registration.id(), registration.password());
 
@@ -56,46 +53,63 @@ public class RegistrationServiceImplIntegrateTest {
         assertEquals(registrationDto.email(), usernameUpdated.email(), "emails must be the same");
         assertEquals(registrationDto.phone(), usernameUpdated.phone(), "Phone numbers must be the same");
         assertEquals(registration.id(), usernameUpdated.id(), "ids must be the same");
+    }
 
-        /*
-        Updating field email. Success
-         */
+    @Test
+    void updateRegistrationEmailSuccess() {
+        NewRegistrationDto registrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+
+        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto);
+
         UpdateRegistrationDto updateEmail = createUpdateRegistrationDto(
                 null, "mail@gmail.com", null, registration.id(), registration.password());
 
         UpdatedRegistrationResponseDto emailUpdated = registrationService.update(updateEmail);
 
-        assertEquals(usernameUpdated.username(), emailUpdated.username(), "usernames must be the same");
+        assertEquals(registrationDto.username(), emailUpdated.username(), "usernames must be the same");
         assertEquals(updateEmail.email(), emailUpdated.email(), "emails must be the same");
         assertEquals(registrationDto.phone(), emailUpdated.phone(), "Phone numbers must be the same");
         assertEquals(registration.id(), emailUpdated.id(), "ids must be the same");
+    }
 
-        /*
-        Updating field phone. Success
-         */
+    @Test
+    void updateRegistrationPhoneSuccess() {
+        NewRegistrationDto registrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+
+        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto);
 
         UpdateRegistrationDto updatePhone = createUpdateRegistrationDto(
                 null, null, "78887776655", registration.id(), registration.password());
 
         UpdatedRegistrationResponseDto phoneUpdated = registrationService.update(updatePhone);
 
-        assertEquals(usernameUpdated.username(), phoneUpdated.username(), "usernames must be the same");
-        assertEquals(updateEmail.email(), phoneUpdated.email(), "emails must be the same");
+        assertEquals(registrationDto.username(), phoneUpdated.username(), "usernames must be the same");
+        assertEquals(registrationDto.email(), phoneUpdated.email(), "emails must be the same");
         assertEquals(updatePhone.phone(), phoneUpdated.phone(), "Phone numbers must be the same");
         assertEquals(registration.id(), phoneUpdated.id(), "ids must be the same");
+    }
 
-        /*
-        Field update failed. Incorrect password
-         */
+    @Test
+    void updateRegistrationFailIncorrectPassword() {
+        NewRegistrationDto registrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+
+        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto);
 
         UpdateRegistrationDto failPasswordUpdate = createUpdateRegistrationDto(
                 "this gonna fail", null, null, registration.id(), "fake");
 
         assertThrows(PasswordIncorrectException.class, () -> registrationService.update(failPasswordUpdate));
+    }
 
-        /*
-        Field update failed. Object not found
-         */
+    @Test
+    void updateRegistrationFailNotFound() {
+        NewRegistrationDto registrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+
+        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto);
 
         UpdateRegistrationDto notFoundObject = createUpdateRegistrationDto(
                 "this gonna fail", null, null, registration.id() + 1, registration.password());
@@ -104,7 +118,6 @@ public class RegistrationServiceImplIntegrateTest {
     }
 
     @Test
-    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void findRegistrationById() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
@@ -127,16 +140,15 @@ public class RegistrationServiceImplIntegrateTest {
     }
 
     @Test
-    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
-    void findRegistrationsByEventId() {
-        /*
-        Returns empty array list if no registrations found
-         */
-
-        List<RegistrationResponseDto> emptyList = registrationService.findAllByEventId(0, 10, 9999999999999L);
+    void findRegistrationsByEventIdSuccessWhenEmpty() {
+        List<RegistrationResponseDto> emptyList =
+                registrationService.findAllByEventId(0, 10, 9999999999999L);
 
         assertEquals(0, emptyList.size(), "List must be empty");
+    }
 
+    @Test
+    void findRegistrationsByEventIdOneRegistrationOnly() {
         /*
         Retrieves all registrations for event. Only one registration exists
          */
@@ -154,10 +166,14 @@ public class RegistrationServiceImplIntegrateTest {
         assertEquals(registrationDto.username(), oneRegistrationList.get(0).username(), "username must be the same");
         assertEquals(registrationDto.email(), oneRegistrationList.get(0).email(), "email must be the same");
         assertEquals(registrationDto.phone(), oneRegistrationList.get(0).phone(), "phone must be the same");
+    }
 
-        /*
-        Retrieves all registrations for event. Must be 2 registrations in the list
-         */
+    @Test
+    void findRegistrationsByEventIdTwoRegistrations() {
+        NewRegistrationDto registrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 9999999999999L);
+
+        registrationService.create(registrationDto);
 
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78885553535", 9999999999999L);
@@ -171,30 +187,38 @@ public class RegistrationServiceImplIntegrateTest {
     }
 
     @Test
-    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
-    void deleteRegistrationById() {
+    void deleteNonExistingRegistrationByIdFail() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
 
         CreatedRegistrationResponseDto registration = registrationService.create(registrationDto);
-        /*
-        Attempt to delete non-existing registration. Throws NotFoundException
-         */
+
         DeleteRegistrationDto registrationNotExistDeleteDto =
                 createDeleteRegistrationDto(registration.id() + 1, registration.password());
 
         assertThrows(NotFoundException.class, () -> registrationService.delete(registrationNotExistDeleteDto));
+    }
 
-        /*
-        Attempt to delete registration, but the password is wrong
-         */
+    @Test
+    void deleteRegistrationByIdFailWrongPassword() {
+        NewRegistrationDto registrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+
+        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto);
+
         DeleteRegistrationDto wrongPasswordDeleteDto =
                 createDeleteRegistrationDto(registration.id(), "fail");
-        assertThrows(PasswordIncorrectException.class, () -> registrationService.delete(wrongPasswordDeleteDto));
 
-        /*
-        Registration deleted successfully
-         */
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.delete(wrongPasswordDeleteDto));
+    }
+
+    @Test
+    void deleteRegistrationByIdSuccess() {
+        NewRegistrationDto registrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+
+        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto);
+
         DeleteRegistrationDto deleteDto =
                 createDeleteRegistrationDto(registration.id(), registration.password());
 

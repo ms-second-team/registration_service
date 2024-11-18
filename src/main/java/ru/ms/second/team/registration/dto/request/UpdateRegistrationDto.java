@@ -2,7 +2,6 @@ package ru.ms.second.team.registration.dto.request;
 
 import jakarta.validation.constraints.*;
 import lombok.Builder;
-import ru.ms.second.team.registration.validation.NullOrNotBlank;
 
 @Builder
 public record UpdateRegistrationDto(
@@ -12,7 +11,7 @@ public record UpdateRegistrationDto(
         @NotBlank
         @Size(min = 4, max = 4, message = "Password must contain 4 symbols")
         String password,
-        @NullOrNotBlank
+        @Pattern(regexp = "^(?!\\s*$).+", message = "Username must be either null or not blank")
         String username,
         @Email(message = "Email must be either null or a valid email address")
         String email,

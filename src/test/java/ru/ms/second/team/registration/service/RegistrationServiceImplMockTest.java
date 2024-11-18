@@ -247,7 +247,7 @@ public class RegistrationServiceImplMockTest {
 
 
         when(repository.findAllByEventId(1L, PageRequest.of(0, 10))).thenReturn(page);
-        when(mapper.toRegistrationResponseDto(any(Registration.class))).thenReturn(registrationResponseDto);
+        when(mapper.toRegistrationResponseDtoList(any(Page.class))).thenReturn(List.of(registrationResponseDto));
 
         List<RegistrationResponseDto> result = registrationService.findAllByEventId(0, 10, 1L);
 
@@ -256,7 +256,7 @@ public class RegistrationServiceImplMockTest {
         assertEquals(registration.getPhone(), result.get(0).phone(), "phones must be same");
 
         verify(repository, times(1)).findAllByEventId(anyLong(), any(Pageable.class));
-        verify(mapper, times(1)).toRegistrationResponseDto(any(Registration.class));
+        verify(mapper, times(1)).toRegistrationResponseDtoList(any(Page.class));
     }
 
     @Test
