@@ -91,9 +91,9 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     private void checkPasswordOrThrow(String registrationPassword, String dtoPassword, Long registrationId) {
-        log.debug("Password {} for registration id={} is not correct", dtoPassword, registrationId);
         if (!registrationPassword.equals(dtoPassword)) {
-            throw new PasswordIncorrectException(String.format("Password %s is not correct", dtoPassword));
+            throw new PasswordIncorrectException(String.format(
+                    "Password=%s for registrationId=%d is not correct", dtoPassword, registrationId));
         }
     }
 
