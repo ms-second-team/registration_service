@@ -45,7 +45,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                 updateDto.id(), updateDto);
 
         Registration registration = findRegistrationOrThrow(updateDto.id());
-        checkPasswordOrThrow(registration.getPassword(), updateDto.password());
+        checkPasswordOrThrow(registration.getPassword(), updateDto.password(), updateDto.id());
         doTheUpdate(registration, updateDto);
         registration = registrationRepository.save(registration);
         return mapper.toUpdatedDto(registration);
@@ -72,7 +72,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         log.info("RegistrationService: executing delete method. Deleting registration id={}",
                 deleteDto.id());
         Registration registration = findRegistrationOrThrow(deleteDto.id());
-        checkPasswordOrThrow(registration.getPassword(), deleteDto.password());
+        checkPasswordOrThrow(registration.getPassword(), deleteDto.password(), deleteDto.id());
         registrationRepository.deleteById(deleteDto.id());
     }
 
@@ -90,7 +90,8 @@ public class RegistrationServiceImpl implements RegistrationService {
         }
     }
 
-    private void checkPasswordOrThrow(String registrationPassword, String dtoPassword) {
+    private void checkPasswordOrThrow(String registrationPassword, String dtoPassword, Long registrationId) {
+        log.debug("Password {} for registration id={} is not correct", dtoPassword, registrationId);
         if (!registrationPassword.equals(dtoPassword)) {
             throw new PasswordIncorrectException(String.format("Password %s is not correct", dtoPassword));
         }
@@ -103,7 +104,6 @@ public class RegistrationServiceImpl implements RegistrationService {
 
     private String generatePassword() {
         SecureRandom random = new SecureRandom();
-        int password = random.nextInt(1000, 10000);
-        return Integer.toString(password);
+        return String.format("%04d", random.nextInt(10000));
     }
 }

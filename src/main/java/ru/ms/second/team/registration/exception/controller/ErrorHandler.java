@@ -49,4 +49,11 @@ public class ErrorHandler {
         log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
         return new ErrorResponse(HttpStatus.BAD_REQUEST.toString(), e.getMessage());
     }
+
+    @ExceptionHandler
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleMethodArgumentNotValidException(final Exception e) {
+        log.error("{}, {}", HttpStatus.INTERNAL_SERVER_ERROR, e.getLocalizedMessage());
+        return new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.toString(), e.getMessage());
+    }
 }
