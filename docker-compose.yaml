@@ -1,0 +1,24 @@
+services:
+  registration_service:
+    build: .
+    image: registration-service
+    container_name: registration-service-container
+    ports:
+      - 8080:8080
+    depends_on:
+      - registrations-db
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://registrations-db:5432/registrations-db
+      - POSTGRES_DB=registrations-db
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+
+  registrations-db:
+    image: postgres:14-alpine
+    container_name: registrations-db-container
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=registrations-db
