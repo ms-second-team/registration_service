@@ -25,18 +25,20 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class RegistrationServiceImpl implements RegistrationService {
+
     private final JpaRegistrationRepository registrationRepository;
-    private final RegistrationMapper mapper;
+    private final RegistrationMapper registrationMapper;
 
     @Override
     public CreatedRegistrationResponseDto create(NewRegistrationDto creationDto) {
         log.info("RegistrationService: executing create method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
 
-        Registration registration = mapper.toRegistration(creationDto, generatePassword());
+        Registration registration = registrationMapper.toModel(creationDto);
+        registration.setPassword(generatePassword());
         registration = registrationRepository.save(registration);
 
-        return mapper.toCreatedDto(registration);
+        return registrationMapper.toCreatedDto(registration);
     }
 
     @Override
@@ -46,15 +48,16 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         Registration registration = findRegistrationOrThrow(updateDto.id());
         checkPasswordOrThrow(registration.getPassword(), updateDto.password(), updateDto.id());
-        doTheUpdate(registration, updateDto);
+        registrationMapper.updateRegistration(updateDto, registration);
         registration = registrationRepository.save(registration);
-        return mapper.toUpdatedDto(registration);
+        return registrationMapper.toUpdatedDto(registration);
     }
 
     @Override
     public RegistrationResponseDto findById(Long id) {
         log.debug("RegistrationService: executing findById method. Id={}", id);
-        return mapper.toRegistrationResponseDto(findRegistrationOrThrow(id));
+        Registration registration = findRegistrationOrThrow(id);
+        return registrationMapper.toRegistrationDto(registration);
     }
 
     @Override
@@ -64,7 +67,7 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         Page<Registration> registrations = registrationRepository.findAllByEventId(eventId, PageRequest.of(page, size));
 
-        return mapper.toRegistrationResponseDtoList(registrations);
+        return registrationMapper.toRegistraionDtoList(registrations.getContent());
     }
 
     @Override
@@ -74,20 +77,6 @@ public class RegistrationServiceImpl implements RegistrationService {
         Registration registration = findRegistrationOrThrow(deleteDto.id());
         checkPasswordOrThrow(registration.getPassword(), deleteDto.password(), deleteDto.id());
         registrationRepository.deleteById(deleteDto.id());
-    }
-
-    private void doTheUpdate(Registration registration, UpdateRegistrationDto updateDto) {
-        log.debug("RegistrationService: executing doTheUpdate method for registration {}, updateDto {}", registration,
-                updateDto);
-        if (updateDto.username() != null) {
-            registration.setUsername(updateDto.username());
-        }
-        if (updateDto.email() != null) {
-            registration.setEmail(updateDto.email());
-        }
-        if (updateDto.phone() != null) {
-            registration.setPhone(updateDto.phone());
-        }
     }
 
     private void checkPasswordOrThrow(String registrationPassword, String dtoPassword, Long registrationId) {

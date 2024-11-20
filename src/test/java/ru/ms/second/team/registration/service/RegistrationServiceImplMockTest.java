@@ -26,13 +26,18 @@ import ru.ms.second.team.registration.service.impl.RegistrationServiceImpl;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class RegistrationServiceImplMockTest {
+
     @InjectMocks
     private RegistrationServiceImpl registrationService;
     @Mock
@@ -56,7 +61,7 @@ public class RegistrationServiceImplMockTest {
         Registration registrationFromMapper = createRegistration(
                 0L, "user1", "mail@mail.com", "78005553535");
 
-        when(mapper.toRegistration(any(NewRegistrationDto.class), anyString())).thenReturn(registrationFromMapper);
+        when(mapper.toModel(any(NewRegistrationDto.class))).thenReturn(registrationFromMapper);
         when(mapper.toCreatedDto(any(Registration.class))).thenReturn(createdRegistrationResponseDto);
         when(repository.save(any(Registration.class))).thenReturn(registration);
 
@@ -65,7 +70,7 @@ public class RegistrationServiceImplMockTest {
         assertEquals(result.id(), createdRegistrationResponseDto.id(), "id's must be same");
         assertEquals(result.password(), registration.getPassword(), "passwords must be same");
 
-        verify(mapper, times(1)).toRegistration(any(NewRegistrationDto.class), anyString());
+        verify(mapper, times(1)).toModel(any(NewRegistrationDto.class));
         verify(mapper, times(1)).toCreatedDto(any(Registration.class));
         verify(repository, times(1)).save(any(Registration.class));
     }
@@ -212,7 +217,7 @@ public class RegistrationServiceImplMockTest {
         registrationResponseDto =
                 createResponseDto(registration.getUsername(), registration.getEmail(), registration.getPhone());
 
-        when(mapper.toRegistrationResponseDto(any(Registration.class))).thenReturn(registrationResponseDto);
+        when(mapper.toRegistrationDto(any(Registration.class))).thenReturn(registrationResponseDto);
         when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
 
         RegistrationResponseDto result = registrationService.findById(1L);
@@ -221,7 +226,7 @@ public class RegistrationServiceImplMockTest {
         assertEquals(registration.getEmail(), result.email(), "emails must be same");
         assertEquals(registration.getPhone(), result.phone(), "phones must be same");
 
-        verify(mapper, times(1)).toRegistrationResponseDto(any(Registration.class));
+        verify(mapper, times(1)).toRegistrationDto(any(Registration.class));
         verify(repository, times(1)).findById(anyLong());
     }
 
@@ -247,7 +252,7 @@ public class RegistrationServiceImplMockTest {
 
 
         when(repository.findAllByEventId(1L, PageRequest.of(0, 10))).thenReturn(page);
-        when(mapper.toRegistrationResponseDtoList(any(Page.class))).thenReturn(List.of(registrationResponseDto));
+        when(mapper.toRegistraionDtoList(any(List.class))).thenReturn(List.of(registrationResponseDto));
 
         List<RegistrationResponseDto> result = registrationService.findAllByEventId(0, 10, 1L);
 
@@ -256,7 +261,7 @@ public class RegistrationServiceImplMockTest {
         assertEquals(registration.getPhone(), result.get(0).phone(), "phones must be same");
 
         verify(repository, times(1)).findAllByEventId(anyLong(), any(Pageable.class));
-        verify(mapper, times(1)).toRegistrationResponseDtoList(any(Page.class));
+        verify(mapper, times(1)).toRegistraionDtoList(any(List.class));
     }
 
     @Test

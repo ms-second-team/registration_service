@@ -24,6 +24,7 @@ import java.util.List;
 @Validated
 @RequestMapping("/registrations")
 public class RegistrationController {
+
     private final RegistrationService registrationService;
 
     @PostMapping
