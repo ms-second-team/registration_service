@@ -74,7 +74,7 @@ public class RegistrationController {
         registrationService.delete(deleteDto);
     }
 
-    @PatchMapping("/status/{registrationId}")
+    @PatchMapping("/{registrationId}/status")
     public RegistrationStatus updateRegistrationStatus(@PathVariable Long registrationId,
                                                        @RequestParam RegistrationStatus newStatus,
                                                        @RequestBody @Valid RegistrationCredentials registrationCredentials) {
@@ -83,7 +83,7 @@ public class RegistrationController {
         return registrationService.updateRegistrationStatus(registrationId, newStatus, registrationCredentials);
     }
 
-    @PatchMapping("/status/{registrationId}/decline")
+    @PatchMapping("/{registrationId}/status/decline")
     public RegistrationStatus declineRegistration(@PathVariable Long registrationId,
                                                   @RequestParam
                                                   @NotBlank(message = "Reason must be specified") String reason,
@@ -95,11 +95,13 @@ public class RegistrationController {
     @GetMapping("/search")
     public List<RegistrationResponseDto> searchRegistrations(@RequestParam List<RegistrationStatus> statuses,
                                                              @RequestParam Long eventId) {
+        log.debug("Requesting registrations for event with id '{}', statuses: {}", eventId, statuses);
         return registrationService.searchRegistrations(statuses, eventId);
     }
 
-    @GetMapping("/search/{eventId}")
-    public RegistrationCount getRegistrationsCountByEventId(@PathVariable Long eventId) {
+    @GetMapping("/count")
+    public RegistrationCount getRegistrationsCountByEventId(@RequestParam Long eventId) {
+        log.debug("Requesting registrations count for event with id '{}'", eventId);
         return registrationService.getRegistrationsCountByEventId(eventId);
     }
 

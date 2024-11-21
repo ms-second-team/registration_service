@@ -526,7 +526,7 @@ public class RegistrationControllerTest {
         when(registrationService.updateRegistrationStatus(registrationId, status, registrationCredentials))
                 .thenReturn(status);
 
-        mvc.perform(patch("/registrations/status/{registrationId}", registrationId)
+        mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
                         .param("newStatus", String.valueOf(status))
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
@@ -545,7 +545,7 @@ public class RegistrationControllerTest {
         Long registrationId = 34L;
         registrationCredentials = createRegistrationCredentials(1L, "1234");
 
-        mvc.perform(patch("/registrations/status/{registrationId}", registrationId)
+        mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
                         .param("newStatus", String.valueOf(status))
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
@@ -566,7 +566,7 @@ public class RegistrationControllerTest {
         when(registrationService.updateRegistrationStatus(registrationId, status, registrationCredentials))
                 .thenThrow(NotFoundException.class);
 
-        mvc.perform(patch("/registrations/status/{registrationId}", registrationId)
+        mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
                         .param("newStatus", String.valueOf(status))
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
@@ -587,7 +587,7 @@ public class RegistrationControllerTest {
         when(registrationService.updateRegistrationStatus(registrationId, status, registrationCredentials))
                 .thenThrow(PasswordIncorrectException.class);
 
-        mvc.perform(patch("/registrations/status/{registrationId}", registrationId)
+        mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
                         .param("newStatus", String.valueOf(status))
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
@@ -634,7 +634,8 @@ public class RegistrationControllerTest {
         when(registrationService.getRegistrationsCountByEventId(eventId))
                 .thenReturn(count);
 
-        mvc.perform(get("/registrations/search/{eventId}", eventId))
+        mvc.perform(get("/registrations/count")
+                        .param("eventId", String.valueOf(eventId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.numberOfWaitingRegistrations", is(count.numberOfWaitingRegistrations()), Long.class))
                 .andExpect(jsonPath("$.numberOfDeclinedRegistrations", is(count.numberOfDeclinedRegistrations()), Long.class))
@@ -656,7 +657,7 @@ public class RegistrationControllerTest {
         when(registrationService.declineRegistration(registrationId, reason, registrationCredentials))
                 .thenReturn(status);
 
-        mvc.perform(patch("/registrations/status/{registrationId}/decline", registrationId)
+        mvc.perform(patch("/registrations/{registrationId}/status/decline", registrationId)
                         .param("reason", reason)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
@@ -677,7 +678,7 @@ public class RegistrationControllerTest {
         when(registrationService.declineRegistration(registrationId, reason, registrationCredentials))
                 .thenThrow(NotFoundException.class);
 
-        mvc.perform(patch("/registrations/status/{registrationId}/decline", registrationId)
+        mvc.perform(patch("/registrations/{registrationId}/status/decline", registrationId)
                         .param("reason", reason)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
@@ -697,7 +698,7 @@ public class RegistrationControllerTest {
         when(registrationService.declineRegistration(registrationId, reason, registrationCredentials))
                 .thenThrow(PasswordIncorrectException.class);
 
-        mvc.perform(patch("/registrations/status/{registrationId}/decline", registrationId)
+        mvc.perform(patch("/registrations/{registrationId}/status/decline", registrationId)
                         .param("reason", reason)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
