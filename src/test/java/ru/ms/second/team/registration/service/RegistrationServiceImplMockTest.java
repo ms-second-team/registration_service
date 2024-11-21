@@ -3,6 +3,8 @@ package ru.ms.second.team.registration.service;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -10,19 +12,24 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import ru.ms.second.team.registration.dto.request.DeleteRegistrationDto;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
 import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
 import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.response.RegistrationCount;
 import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
 import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
 import ru.ms.second.team.registration.mapper.RegistrationMapper;
+import ru.ms.second.team.registration.model.DeclinedRegistration;
 import ru.ms.second.team.registration.model.Registration;
+import ru.ms.second.team.registration.model.RegistrationStatus;
+import ru.ms.second.team.registration.repository.DeclinedRegistrationRepository;
 import ru.ms.second.team.registration.repository.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.impl.RegistrationServiceImpl;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +41,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static ru.ms.second.team.registration.model.RegistrationStatus.APPROVED;
+import static ru.ms.second.team.registration.model.RegistrationStatus.DECLINED;
+import static ru.ms.second.team.registration.model.RegistrationStatus.PENDING;
+import static ru.ms.second.team.registration.model.RegistrationStatus.WAITING;
 
 @ExtendWith(MockitoExtension.class)
 public class RegistrationServiceImplMockTest {
@@ -43,13 +54,19 @@ public class RegistrationServiceImplMockTest {
     @Mock
     private JpaRegistrationRepository repository;
     @Mock
+    private DeclinedRegistrationRepository declinedRegistrationRepository;
+    @Mock
     private RegistrationMapper mapper;
 
     private UpdateRegistrationDto updateRegistrationDto;
     private UpdatedRegistrationResponseDto updatedRegistrationResponseDto;
-    private DeleteRegistrationDto deleteRegistrationDto;
+    private RegistrationCredentials registrationCredentials;
     private RegistrationResponseDto registrationResponseDto;
     private Registration registration;
+    @Captor
+    private ArgumentCaptor<Registration> captor;
+    @Captor
+    private ArgumentCaptor<DeclinedRegistration> declinedRegistrationCaptor;
 
     @Test
     @DisplayName("Created registration")
@@ -279,46 +296,235 @@ public class RegistrationServiceImplMockTest {
     @Test
     @DisplayName("Delete registration successfully")
     void deleteRegistrationById() {
-        deleteRegistrationDto = createDeleteRegistrationDto("1234");
+        registrationCredentials = createRegistrationCredentials("1234");
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
 
         when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
 
-        registrationService.delete(deleteRegistrationDto);
+        registrationService.delete(registrationCredentials);
 
         verify(repository, times(1)).findById(anyLong());
-        verify(repository, times(1)).deleteById(deleteRegistrationDto.id());
+        verify(repository, times(1)).deleteById(registrationCredentials.id());
+        verify(declinedRegistrationRepository, times(1))
+                .deleteAllByRegistrationId(registrationCredentials.id());
     }
 
     @Test
     @DisplayName("Deletion failed due to incorrect password")
     void deleteFailIncorrectPassword() {
-        deleteRegistrationDto = createDeleteRegistrationDto("4321");
+        registrationCredentials = createRegistrationCredentials("4321");
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
 
         when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
 
-        assertThrows(PasswordIncorrectException.class, () -> registrationService.delete(deleteRegistrationDto));
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.delete(registrationCredentials));
 
         verify(repository, times(1)).findById(anyLong());
-        verify(repository, never()).deleteById(deleteRegistrationDto.id());
+        verify(repository, never()).deleteById(registrationCredentials.id());
+        verify(declinedRegistrationRepository, never()).deleteAllByRegistrationId(registrationCredentials.id());
     }
 
     @Test
     @DisplayName("Deletion failed due to object was not found")
     void deleteFailNotFound() {
-        deleteRegistrationDto = createDeleteRegistrationDto("4321");
+        registrationCredentials = createRegistrationCredentials("4321");
 
         when(repository.findById(anyLong())).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> registrationService.delete(deleteRegistrationDto));
+        assertThrows(NotFoundException.class, () -> registrationService.delete(registrationCredentials));
 
         verify(repository, times(1)).findById(anyLong());
-        verify(repository, never()).deleteById(deleteRegistrationDto.id());
+        verify(repository, never()).deleteById(registrationCredentials.id());
+        verify(declinedRegistrationRepository, never()).deleteAllByRegistrationId(registrationCredentials.id());
+    }
+
+    @Test
+    @DisplayName("Update registration status")
+    void updateRegistrationStatus_whenRegistrationFound_ShouldUpdateStatus() {
+        RegistrationStatus status = APPROVED;
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(repository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(repository.save(any()))
+                .thenReturn(registration);
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(registration.getId(), status, registrationCredentials);
+
+        assertEquals(status, result);
+
+        verify(repository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(status, registrationToSave.getStatus());
+
+        verify(repository, times(1)).findById(registration.getId());
+        verify(repository, times(1)).save(registrationToSave);
+    }
+
+    @Test
+    @DisplayName("Update registration status, registration not found")
+    void updateRegistrationStatus_whenRegistrationNotFound_ShouldThrowNotFoundException() {
+        RegistrationStatus status = APPROVED;
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(repository.findById(registration.getId()))
+                .thenReturn(Optional.empty());
+
+        NotFoundException ex = assertThrows(NotFoundException.class,
+                () -> registrationService.updateRegistrationStatus(registration.getId(), status, registrationCredentials));
+
+        assertEquals("Registration with id=" + registration.getId() + " was not found", ex.getLocalizedMessage());
+
+        verify(repository, times(1)).findById(registration.getId());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Update registration status, wrong password")
+    void updateRegistrationStatus_whenWrongPassword_ShouldThrowNotFoundException() {
+        RegistrationStatus status = APPROVED;
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        registrationCredentials = createRegistrationCredentials("12345");
+
+        when(repository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+
+        PasswordIncorrectException ex = assertThrows(PasswordIncorrectException.class,
+                () -> registrationService.updateRegistrationStatus(registration.getId(), status, registrationCredentials));
+
+        assertEquals("Password=" + registrationCredentials.password() + " for registrationId=" +
+                registration.getId() + " is not correct", ex.getLocalizedMessage());
+
+        verify(repository, times(1)).findById(registration.getId());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Decline registration")
+    void declineRegistration_whenRegistrationFound_ShouldDecline() {
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        RegistrationStatus status = DECLINED;
+        String reason = "reason";
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(repository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(repository.save(any()))
+                .thenReturn(registration);
+        when(declinedRegistrationRepository.save(any()))
+                .thenReturn(any());
+
+        RegistrationStatus result = registrationService.declineRegistration(registration.getId(), reason, registrationCredentials);
+
+        assertEquals(status, result);
+
+        verify(repository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(status, registrationToSave.getStatus());
+
+        verify(declinedRegistrationRepository).save(declinedRegistrationCaptor.capture());
+        DeclinedRegistration declinedRegistrationToSave = declinedRegistrationCaptor.getValue();
+
+        assertEquals(registration.getId(), declinedRegistrationToSave.getRegistration().getId());
+        assertEquals(reason, declinedRegistrationToSave.getReason());
+
+        verify(repository, times(1)).findById(registration.getId());
+        verify(repository, times(1)).save(registrationToSave);
+        verify(declinedRegistrationRepository, times(1)).save(declinedRegistrationToSave);
+    }
+
+    @Test
+    @DisplayName("Decline registration, registration not found")
+    void declineRegistration_whenRegistrationNotFound_ShouldThrowNotFoundException() {
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        String reason = "reason";
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(repository.findById(registration.getId()))
+                .thenReturn(Optional.empty());
+
+        NotFoundException ex = assertThrows(NotFoundException.class,
+                () -> registrationService.declineRegistration(registration.getId(), reason, registrationCredentials));
+
+        assertEquals("Registration with id=" + registration.getId() + " was not found", ex.getLocalizedMessage());
+
+        verify(repository, times(1)).findById(registration.getId());
+        verify(repository, never()).save(any());
+        verify(declinedRegistrationRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Search registrations")
+    void searchRegistrations() {
+        List<RegistrationStatus> statuses = Collections.singletonList(DECLINED);
+        Long eventId = 23L;
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        registrationResponseDto =
+                createResponseDto(registration.getUsername(), registration.getEmail(), registration.getPhone());
+
+        when(repository.searchRegistrations(statuses, eventId))
+                .thenReturn(Collections.singletonList(registration));
+        when(mapper.toRegistraionDtoList(Collections.singletonList(registration)))
+                .thenReturn(Collections.singletonList(registrationResponseDto));
+
+        registrationService.searchRegistrations(statuses, eventId);
+
+        verify(repository, times(1)).searchRegistrations(statuses, eventId);
+        verify(mapper, times(1)).toRegistraionDtoList(Collections.singletonList(registration));
+    }
+
+    @Test
+    @DisplayName("Get registrations count")
+    void getRegistrationCountByStatus() {
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        long numberOfWaitingRegistrations = 1;
+        long numberOfDeclinedRegistrations = 2;
+        long numberOfApprovedRegistrations = 3;
+        long numberOfPendingRegistrations = 4;
+        Long eventId = 434L;
+
+        when(repository.getRegistrationsCountByStatusAndEventId(APPROVED, eventId))
+                .thenReturn(numberOfApprovedRegistrations);
+        when(repository.getRegistrationsCountByStatusAndEventId(WAITING, eventId))
+                .thenReturn(numberOfWaitingRegistrations);
+        when(repository.getRegistrationsCountByStatusAndEventId(DECLINED, eventId))
+                .thenReturn(numberOfDeclinedRegistrations);
+        when(repository.getRegistrationsCountByStatusAndEventId(PENDING, eventId))
+                .thenReturn(numberOfPendingRegistrations);
+
+        RegistrationCount countByStatus = registrationService.getRegistrationsCountByEventId(eventId);
+
+        assertEquals(numberOfWaitingRegistrations, countByStatus.numberOfWaitingRegistrations());
+        assertEquals(numberOfDeclinedRegistrations, countByStatus.numberOfDeclinedRegistrations());
+        assertEquals(numberOfApprovedRegistrations, countByStatus.numberOfApprovedRegistrations());
+        assertEquals(numberOfPendingRegistrations, countByStatus.numberOfPendingRegistrations());
+
+        verify(repository, times(1)).getRegistrationsCountByStatusAndEventId(APPROVED, eventId);
+        verify(repository, times(1)).getRegistrationsCountByStatusAndEventId(DECLINED, eventId);
+        verify(repository, times(1)).getRegistrationsCountByStatusAndEventId(WAITING, eventId);
+        verify(repository, times(1)).getRegistrationsCountByStatusAndEventId(PENDING, eventId);
     }
 
     private NewRegistrationDto createNewRegistrationDto() {
@@ -356,8 +562,8 @@ public class RegistrationServiceImplMockTest {
                 .build();
     }
 
-    private DeleteRegistrationDto createDeleteRegistrationDto(String password) {
-        return DeleteRegistrationDto.builder()
+    private RegistrationCredentials createRegistrationCredentials(String password) {
+        return RegistrationCredentials.builder()
                 .id(1L)
                 .password(password).build();
     }
@@ -382,6 +588,7 @@ public class RegistrationServiceImplMockTest {
                 .phone(phone)
                 .eventId(1L)
                 .password("1234")
+                .status(PENDING)
                 .build();
     }
 

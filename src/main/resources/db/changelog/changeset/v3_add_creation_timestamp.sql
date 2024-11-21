@@ -1,0 +1,2 @@
+ALTER TABLE registrations
+ADD COLUMN created_at TIMESTAMP NOT NULL

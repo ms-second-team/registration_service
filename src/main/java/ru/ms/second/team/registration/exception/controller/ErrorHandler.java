@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
 import ru.ms.second.team.registration.exception.model.ErrorResponse;
@@ -48,6 +49,20 @@ public class ErrorHandler {
     public ErrorResponse handleMethodArgumentNotValidException(final MethodArgumentNotValidException e) {
         log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
         return new ErrorResponse(HttpStatus.BAD_REQUEST.toString(), e.getMessage());
+    }
+
+    @ExceptionHandler
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+        log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
+        return new ErrorResponse(HttpStatus.BAD_REQUEST.getReasonPhrase(), "Unknown status: " + e.getValue());
+    }
+
+    @ExceptionHandler
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleIllegalArgumentException(IllegalArgumentException e) {
+        log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
+        return new ErrorResponse(HttpStatus.BAD_REQUEST.getReasonPhrase(), e.getLocalizedMessage());
     }
 
     @ExceptionHandler

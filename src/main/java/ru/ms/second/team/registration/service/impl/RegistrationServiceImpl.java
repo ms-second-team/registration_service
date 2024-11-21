@@ -5,21 +5,28 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import ru.ms.second.team.registration.dto.request.DeleteRegistrationDto;
+import org.springframework.transaction.annotation.Transactional;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
 import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
 import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.response.RegistrationCount;
 import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
 import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
 import ru.ms.second.team.registration.mapper.RegistrationMapper;
+import ru.ms.second.team.registration.model.DeclinedRegistration;
 import ru.ms.second.team.registration.model.Registration;
+import ru.ms.second.team.registration.model.RegistrationStatus;
+import ru.ms.second.team.registration.repository.DeclinedRegistrationRepository;
 import ru.ms.second.team.registration.repository.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.RegistrationService;
 
 import java.security.SecureRandom;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -27,6 +34,7 @@ import java.util.List;
 public class RegistrationServiceImpl implements RegistrationService {
 
     private final JpaRegistrationRepository registrationRepository;
+    private final DeclinedRegistrationRepository declinedRegistrationRepository;
     private final RegistrationMapper registrationMapper;
 
     @Override
@@ -71,12 +79,58 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
-    public void delete(DeleteRegistrationDto deleteDto) {
+    @Transactional
+    public void delete(RegistrationCredentials registrationCredentials) {
         log.info("RegistrationService: executing delete method. Deleting registration id={}",
-                deleteDto.id());
-        Registration registration = findRegistrationOrThrow(deleteDto.id());
-        checkPasswordOrThrow(registration.getPassword(), deleteDto.password(), deleteDto.id());
-        registrationRepository.deleteById(deleteDto.id());
+                registrationCredentials.id());
+        Registration registration = findRegistrationOrThrow(registrationCredentials.id());
+        checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
+        registrationRepository.deleteById(registrationCredentials.id());
+        declinedRegistrationRepository.deleteAllByRegistrationId(registrationCredentials.id());
+        updateStatusOfClosestWaitingRegistration(registration);
+    }
+
+    @Override
+    public RegistrationStatus updateRegistrationStatus(Long registrationId, RegistrationStatus newStatus,
+                                                       RegistrationCredentials registrationCredentials) {
+        final Registration registration = findRegistrationOrThrow(registrationId);
+        checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
+        registration.setStatus(newStatus);
+        final Registration updatedRegistration = registrationRepository.save(registration);
+        log.debug("New status '{}' for registration with id '{}'", newStatus, registrationId);
+        return updatedRegistration.getStatus();
+    }
+
+    @Override
+    public RegistrationStatus declineRegistration(Long registrationId, String reason,
+                                                  RegistrationCredentials registrationCredentials) {
+        final Registration registration = findRegistrationOrThrow(registrationId);
+        checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
+        registration.setStatus(RegistrationStatus.DECLINED);
+        final Registration updatedRegistration = registrationRepository.save(registration);
+        saveDeclineReason(reason, updatedRegistration);
+        log.debug("Registration with id '{}' was declined. Reason: {}", registrationId, reason);
+        return updatedRegistration.getStatus();
+    }
+
+    @Override
+    public List<RegistrationResponseDto> searchRegistrations(List<RegistrationStatus> statuses, Long eventId) {
+        final List<Registration> registrations = registrationRepository.searchRegistrations(statuses, eventId);
+        log.debug("Found '{}' registrations for event with id '{}' and statuses in '{}'", registrations.size(),
+                eventId, statuses);
+        return registrationMapper.toRegistraionDtoList(registrations);
+    }
+
+    @Override
+    public RegistrationCount getRegistrationsCountByEventId(Long eventId) {
+        final Map<RegistrationStatus, Long> statusToRegistrationsCount = new HashMap<>();
+        for (RegistrationStatus status : RegistrationStatus.values()) {
+            long numberOfRegistrations = registrationRepository.getRegistrationsCountByStatusAndEventId(status, eventId);
+            statusToRegistrationsCount.put(status, numberOfRegistrations);
+        }
+        final RegistrationCount registrationCount = convertMapToRegistrationsCount(statusToRegistrationsCount);
+        log.debug("Retrieved registrations count for event with id '{}'", eventId);
+        return registrationCount;
     }
 
     private void checkPasswordOrThrow(String registrationPassword, String dtoPassword, Long registrationId) {
@@ -94,5 +148,30 @@ public class RegistrationServiceImpl implements RegistrationService {
     private String generatePassword() {
         SecureRandom random = new SecureRandom();
         return String.format("%04d", random.nextInt(10000));
+    }
+
+    private void updateStatusOfClosestWaitingRegistration(Registration registration) {
+        if (registration.getStatus().equals(RegistrationStatus.APPROVED)) {
+            Registration closestRegistration = registrationRepository.findEarliestWaitingRegistration();
+            closestRegistration.setStatus(RegistrationStatus.PENDING);
+            registrationRepository.save(closestRegistration);
+        }
+    }
+
+    private void saveDeclineReason(String reason, Registration updatedRegistration) {
+        DeclinedRegistration declinedRegistration = DeclinedRegistration.builder()
+                .registration(updatedRegistration)
+                .reason(reason)
+                .build();
+        declinedRegistrationRepository.save(declinedRegistration);
+    }
+
+    private RegistrationCount convertMapToRegistrationsCount(Map<RegistrationStatus, Long> statusToRegistrationsCount) {
+        return RegistrationCount.builder()
+                .numberOfPendingRegistrations(statusToRegistrationsCount.get(RegistrationStatus.PENDING))
+                .numberOfApprovedRegistrations(statusToRegistrationsCount.get(RegistrationStatus.APPROVED))
+                .numberOfWaitingRegistrations(statusToRegistrationsCount.get(RegistrationStatus.WAITING))
+                .numberOfDeclinedRegistrations(statusToRegistrationsCount.get(RegistrationStatus.DECLINED))
+                .build();
     }
 }

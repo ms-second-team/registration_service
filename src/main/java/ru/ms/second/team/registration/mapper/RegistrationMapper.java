@@ -2,6 +2,7 @@ package ru.ms.second.team.registration.mapper;
 
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
@@ -16,6 +17,7 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface RegistrationMapper {
 
+    @Mapping(target = "status", constant = "PENDING")
     Registration toModel(NewRegistrationDto newRegistration);
 
     UpdatedRegistrationResponseDto toUpdatedDto(Registration registration);

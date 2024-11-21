@@ -2,6 +2,9 @@ package ru.ms.second.team.registration.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "registrations")
@@ -21,4 +24,9 @@ public class Registration {
     @Column(name = "event_id")
     private Long eventId;
     private String password;
+    @Enumerated(EnumType.STRING)
+    private RegistrationStatus status;
+    @CreationTimestamp
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 }
