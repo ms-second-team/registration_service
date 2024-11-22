@@ -25,12 +25,13 @@ import ru.ms.second.team.registration.mapper.RegistrationMapper;
 import ru.ms.second.team.registration.model.DeclinedRegistration;
 import ru.ms.second.team.registration.model.Registration;
 import ru.ms.second.team.registration.model.RegistrationStatus;
-import ru.ms.second.team.registration.repository.DeclinedRegistrationRepository;
-import ru.ms.second.team.registration.repository.JpaRegistrationRepository;
+import ru.ms.second.team.registration.repository.jpa.DeclinedRegistrationRepository;
+import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.impl.RegistrationServiceImpl;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -505,14 +506,13 @@ public class RegistrationServiceImplMockTest {
         long numberOfPendingRegistrations = 4;
         Long eventId = 434L;
 
-        when(repository.getRegistrationsCountByStatusAndEventId(APPROVED, eventId))
-                .thenReturn(numberOfApprovedRegistrations);
-        when(repository.getRegistrationsCountByStatusAndEventId(WAITING, eventId))
-                .thenReturn(numberOfWaitingRegistrations);
-        when(repository.getRegistrationsCountByStatusAndEventId(DECLINED, eventId))
-                .thenReturn(numberOfDeclinedRegistrations);
-        when(repository.getRegistrationsCountByStatusAndEventId(PENDING, eventId))
-                .thenReturn(numberOfPendingRegistrations);
+        when(repository.getStatusToNumberOfRegistrationsForEvent(eventId))
+                .thenReturn(Map.of(
+                        "WAITING", 1L,
+                        "DECLINED", 2L,
+                        "APPROVED", 3L,
+                        "PENDING", 4L
+                        ));
 
         RegistrationCount countByStatus = registrationService.getRegistrationsCountByEventId(eventId);
 
@@ -521,10 +521,7 @@ public class RegistrationServiceImplMockTest {
         assertEquals(numberOfApprovedRegistrations, countByStatus.numberOfApprovedRegistrations());
         assertEquals(numberOfPendingRegistrations, countByStatus.numberOfPendingRegistrations());
 
-        verify(repository, times(1)).getRegistrationsCountByStatusAndEventId(APPROVED, eventId);
-        verify(repository, times(1)).getRegistrationsCountByStatusAndEventId(DECLINED, eventId);
-        verify(repository, times(1)).getRegistrationsCountByStatusAndEventId(WAITING, eventId);
-        verify(repository, times(1)).getRegistrationsCountByStatusAndEventId(PENDING, eventId);
+        verify(repository, times(1)).getStatusToNumberOfRegistrationsForEvent(eventId);
     }
 
     private NewRegistrationDto createNewRegistrationDto() {

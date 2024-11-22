@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -446,6 +447,7 @@ public class RegistrationServiceImplIntegrateTest {
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
         registrationService.updateRegistrationStatus(createdRegistration3.id(), WAITING,
                 new RegistrationCredentials(createdRegistration3.id(), createdRegistration3.password()));
+        registrationService.findAllByEventId(0, 10, registrationDto1.eventId());
 
         RegistrationCount count = registrationService.getRegistrationsCountByEventId(registrationDto1.eventId());
 

@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
 import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
@@ -19,8 +21,8 @@ import ru.ms.second.team.registration.mapper.RegistrationMapper;
 import ru.ms.second.team.registration.model.DeclinedRegistration;
 import ru.ms.second.team.registration.model.Registration;
 import ru.ms.second.team.registration.model.RegistrationStatus;
-import ru.ms.second.team.registration.repository.DeclinedRegistrationRepository;
-import ru.ms.second.team.registration.repository.JpaRegistrationRepository;
+import ru.ms.second.team.registration.repository.jpa.DeclinedRegistrationRepository;
+import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.RegistrationService;
 
 import java.security.SecureRandom;
@@ -97,7 +99,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
         registration.setStatus(newStatus);
         final Registration updatedRegistration = registrationRepository.save(registration);
-        log.debug("New status '{}' for registration with id '{}'", newStatus, registrationId);
+        log.info("New status '{}' for registration with id '{}'", newStatus, registrationId);
         return updatedRegistration.getStatus();
     }
 
@@ -123,12 +125,8 @@ public class RegistrationServiceImpl implements RegistrationService {
 
     @Override
     public RegistrationCount getRegistrationsCountByEventId(Long eventId) {
-        final Map<RegistrationStatus, Long> statusToRegistrationsCount = new HashMap<>();
-        for (RegistrationStatus status : RegistrationStatus.values()) {
-            long numberOfRegistrations = registrationRepository.getRegistrationsCountByStatusAndEventId(status, eventId);
-            statusToRegistrationsCount.put(status, numberOfRegistrations);
-        }
-        final RegistrationCount registrationCount = convertMapToRegistrationsCount(statusToRegistrationsCount);
+        Map<String, Long> statusToNumberOfRegistrations = registrationRepository.getStatusToNumberOfRegistrationsForEvent(eventId);
+        final RegistrationCount registrationCount = convertMapToRegistrationsCount(statusToNumberOfRegistrations);
         log.debug("Retrieved registrations count for event with id '{}'", eventId);
         return registrationCount;
     }
@@ -166,12 +164,16 @@ public class RegistrationServiceImpl implements RegistrationService {
         declinedRegistrationRepository.save(declinedRegistration);
     }
 
-    private RegistrationCount convertMapToRegistrationsCount(Map<RegistrationStatus, Long> statusToRegistrationsCount) {
+    private RegistrationCount convertMapToRegistrationsCount(Map<String, Long> statusToRegistrationsCount) {
         return RegistrationCount.builder()
-                .numberOfPendingRegistrations(statusToRegistrationsCount.get(RegistrationStatus.PENDING))
-                .numberOfApprovedRegistrations(statusToRegistrationsCount.get(RegistrationStatus.APPROVED))
-                .numberOfWaitingRegistrations(statusToRegistrationsCount.get(RegistrationStatus.WAITING))
-                .numberOfDeclinedRegistrations(statusToRegistrationsCount.get(RegistrationStatus.DECLINED))
+                .numberOfPendingRegistrations(statusToRegistrationsCount
+                        .getOrDefault(RegistrationStatus.PENDING.name(), 0L))
+                .numberOfApprovedRegistrations(statusToRegistrationsCount
+                        .getOrDefault(RegistrationStatus.APPROVED.name(), 0L))
+                .numberOfWaitingRegistrations(statusToRegistrationsCount
+                        .getOrDefault(RegistrationStatus.WAITING.name(), 0L))
+                .numberOfDeclinedRegistrations(statusToRegistrationsCount
+                        .getOrDefault(RegistrationStatus.DECLINED.name(), 0L))
                 .build();
     }
 }

@@ -1,4 +1,4 @@
-package ru.ms.second.team.registration.repository;
+package ru.ms.second.team.registration.repository.jpa;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import ru.ms.second.team.registration.model.DeclinedRegistration;
