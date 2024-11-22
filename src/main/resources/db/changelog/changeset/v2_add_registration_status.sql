@@ -1,0 +1,2 @@
+ALTER TABLE registrations
+ADD COLUMN status VARCHAR(10) NOT NULL
