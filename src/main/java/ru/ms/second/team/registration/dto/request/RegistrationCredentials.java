@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Builder;
 
 @Builder
-public record DeleteRegistrationDto(
+public record RegistrationCredentials(
         @Positive
         @NotNull
         Long id,

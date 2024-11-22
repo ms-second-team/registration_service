@@ -7,3 +7,27 @@ databaseChangeLog:
             dbms: postgresql
             path: changeset/create_registrations.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 2
+      author: vbakhanovich
+      changes:
+        - sqlFile:
+            dbms: postgresql
+            path: changeset/v2_add_registration_status.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 3
+      author: vbakhanovich
+      changes:
+        - sqlFile:
+            dbms: postgresql
+            path: changeset/v3_add_creation_timestamp.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 4
+      author: vbakhanovich
+      changes:
+        - sqlFile:
+            dbms: postgresql
+            path: changeset/v4_create_declined_registrations.sql
+            relativeToChangelogFile: true

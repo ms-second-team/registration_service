@@ -9,21 +9,35 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import ru.ms.second.team.registration.dto.request.DeleteRegistrationDto;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
 import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
 import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.response.RegistrationCount;
 import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
 import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
+import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
+import ru.ms.second.team.registration.model.RegistrationStatus;
 import ru.ms.second.team.registration.service.RegistrationService;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -39,7 +53,7 @@ public class RegistrationControllerTest {
     private NewRegistrationDto newRegistrationDto;
     private UpdateRegistrationDto updateRegistrationDto;
     private UpdatedRegistrationResponseDto updatedRegistrationResponseDto;
-    private DeleteRegistrationDto deleteRegistrationDto;
+    private RegistrationCredentials registrationCredentials;
     private RegistrationResponseDto registrationResponseDto;
 
     @Test
@@ -449,56 +463,248 @@ public class RegistrationControllerTest {
     @SneakyThrows
     @DisplayName("Registration deleted successfully")
     void deleteRegistrationById() {
-        deleteRegistrationDto = createDeleteRegistrationDto(1L, "1234");
+        registrationCredentials = createRegistrationCredentials(1L, "1234");
         mvc.perform(delete("/registrations")
-                        .content(mapper.writeValueAsString(deleteRegistrationDto))
+                        .content(mapper.writeValueAsString(registrationCredentials))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNoContent());
-        verify(registrationService, times(1)).delete(deleteRegistrationDto);
+        verify(registrationService, times(1)).delete(registrationCredentials);
     }
 
     @Test
     @SneakyThrows
     @DisplayName("Registration failed to delete due to non positive id")
     void deleteRegistrationByIdNonPositiveId() {
-        deleteRegistrationDto = createDeleteRegistrationDto(0L, "1234");
+        registrationCredentials = createRegistrationCredentials(0L, "1234");
         mvc.perform(delete("/registrations")
-                        .content(mapper.writeValueAsString(deleteRegistrationDto))
+                        .content(mapper.writeValueAsString(registrationCredentials))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).delete(deleteRegistrationDto);
+        verify(registrationService, never()).delete(registrationCredentials);
     }
 
     @Test
     @SneakyThrows
     @DisplayName("Registration failed to delete due to too short password")
     void deleteRegistrationFailShortPassword() {
-        deleteRegistrationDto = createDeleteRegistrationDto(1L, "123");
+        registrationCredentials = createRegistrationCredentials(1L, "123");
         mvc.perform(delete("/registrations")
-                        .content(mapper.writeValueAsString(deleteRegistrationDto))
+                        .content(mapper.writeValueAsString(registrationCredentials))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).delete(deleteRegistrationDto);
+        verify(registrationService, never()).delete(registrationCredentials);
     }
 
     @Test
     @SneakyThrows
     @DisplayName("Registration failed to delete due to too long password")
     void deleteRegistrationFailLongPassword() {
-        deleteRegistrationDto = createDeleteRegistrationDto(1L, "12345");
+        registrationCredentials = createRegistrationCredentials(1L, "12345");
         mvc.perform(delete("/registrations")
-                        .content(mapper.writeValueAsString(deleteRegistrationDto))
+                        .content(mapper.writeValueAsString(registrationCredentials))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).delete(deleteRegistrationDto);
+        verify(registrationService, never()).delete(registrationCredentials);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Update registration, valid status")
+    void updateRegistrationStatus_whenValidStatus_shouldReturn200() {
+        RegistrationStatus status = RegistrationStatus.APPROVED;
+        Long registrationId = 34L;
+        registrationCredentials = createRegistrationCredentials(1L, "1234");
+
+        when(registrationService.updateRegistrationStatus(registrationId, status, registrationCredentials))
+                .thenReturn(status);
+
+        mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
+                        .param("newStatus", String.valueOf(status))
+                        .content(mapper.writeValueAsString(registrationCredentials))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().string(mapper.writeValueAsString(status)));
+
+        verify(registrationService, times(1)).updateRegistrationStatus(registrationId, status,
+                registrationCredentials);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Update registration, invalid status")
+    void updateRegistrationStatus_whenDeclinedStatus_shouldReturn400() {
+        RegistrationStatus status = RegistrationStatus.DECLINED;
+        Long registrationId = 34L;
+        registrationCredentials = createRegistrationCredentials(1L, "1234");
+
+        mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
+                        .param("newStatus", String.valueOf(status))
+                        .content(mapper.writeValueAsString(registrationCredentials))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+
+        verify(registrationService, never()).updateRegistrationStatus(any(), any(), any());
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Update registration, registration not found")
+    void updateRegistrationStatus_whenRegistrationNotFound_shouldReturn400() {
+        RegistrationStatus status = RegistrationStatus.WAITING;
+        Long registrationId = 34L;
+        registrationCredentials = createRegistrationCredentials(1L, "1234");
+
+
+        when(registrationService.updateRegistrationStatus(registrationId, status, registrationCredentials))
+                .thenThrow(NotFoundException.class);
+
+        mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
+                        .param("newStatus", String.valueOf(status))
+                        .content(mapper.writeValueAsString(registrationCredentials))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+
+        verify(registrationService, times(1)).updateRegistrationStatus(registrationId, status, registrationCredentials);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Update registration, wrong password")
+    void updateRegistrationStatus_whenWrongPassword_shouldReturn400() {
+        RegistrationStatus status = RegistrationStatus.WAITING;
+        Long registrationId = 34L;
+        registrationCredentials = createRegistrationCredentials(1L, "1234");
+
+
+        when(registrationService.updateRegistrationStatus(registrationId, status, registrationCredentials))
+                .thenThrow(PasswordIncorrectException.class);
+
+        mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
+                        .param("newStatus", String.valueOf(status))
+                        .content(mapper.writeValueAsString(registrationCredentials))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+
+        verify(registrationService, times(1)).updateRegistrationStatus(registrationId, status, registrationCredentials);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Search registration by one status")
+    void searchRegistrations_whenSearchByOneStatus_shouldReturn200Status() {
+        List<RegistrationStatus> statuses = List.of(RegistrationStatus.WAITING, RegistrationStatus.PENDING);
+        Long eventId = 43L;
+        RegistrationResponseDto responseDto = createResponseDto();
+
+        when(registrationService.searchRegistrations(statuses, eventId))
+                .thenReturn(Collections.singletonList(responseDto));
+
+        mvc.perform(get("/registrations/search")
+                        .param("statuses", RegistrationStatus.WAITING.name())
+                        .param("statuses", RegistrationStatus.PENDING.name())
+                        .param("eventId", String.valueOf(eventId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()", is(1)))
+                .andExpect(jsonPath("$.[0].username", is(responseDto.username())));
+
+        verify(registrationService, times(1)).searchRegistrations(statuses, eventId);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Search registration by one status")
+    void getRegistrationCountByStatus_shouldReturn200Status() {
+        RegistrationStatus status = RegistrationStatus.WAITING;
+        RegistrationCount count = RegistrationCount.builder()
+                .numberOfWaitingRegistrations(1)
+                .numberOfDeclinedRegistrations(2)
+                .numberOfApprovedRegistrations(3)
+                .numberOfPendingRegistrations(4)
+                .build();
+        Long eventId = 434L;
+
+        when(registrationService.getRegistrationsCountByEventId(eventId))
+                .thenReturn(count);
+
+        mvc.perform(get("/registrations/count")
+                        .param("eventId", String.valueOf(eventId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numberOfWaitingRegistrations", is(count.numberOfWaitingRegistrations()), Long.class))
+                .andExpect(jsonPath("$.numberOfDeclinedRegistrations", is(count.numberOfDeclinedRegistrations()), Long.class))
+                .andExpect(jsonPath("$.numberOfApprovedRegistrations", is(count.numberOfApprovedRegistrations()), Long.class))
+                .andExpect(jsonPath("$.numberOfPendingRegistrations", is(count.numberOfPendingRegistrations()), Long.class));
+
+        verify(registrationService, times(1)).getRegistrationsCountByEventId(eventId);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Decline registration, registration exists")
+    void declineRegistration_whenRegistrationExists_shouldReturn200Status() {
+        String reason = "reason";
+        Long registrationId = 34L;
+        RegistrationStatus status = RegistrationStatus.DECLINED;
+        registrationCredentials = createRegistrationCredentials(1L, "1234");
+
+        when(registrationService.declineRegistration(registrationId, reason, registrationCredentials))
+                .thenReturn(status);
+
+        mvc.perform(patch("/registrations/{registrationId}/status/decline", registrationId)
+                        .param("reason", reason)
+                        .content(mapper.writeValueAsString(registrationCredentials))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().string(mapper.writeValueAsString(status)));
+
+        verify(registrationService, times(1)).declineRegistration(registrationId, reason, registrationCredentials);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Decline registration, registration not exists")
+    void declineRegistration_whenRegistrationNotExists_shouldReturn200Status() {
+        String reason = "reason";
+        Long registrationId = 34L;
+        registrationCredentials = createRegistrationCredentials(1L, "1234");
+
+        when(registrationService.declineRegistration(registrationId, reason, registrationCredentials))
+                .thenThrow(NotFoundException.class);
+
+        mvc.perform(patch("/registrations/{registrationId}/status/decline", registrationId)
+                        .param("reason", reason)
+                        .content(mapper.writeValueAsString(registrationCredentials))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+
+        verify(registrationService, times(1)).declineRegistration(registrationId, reason, registrationCredentials);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Decline registration, wrong password")
+    void declineRegistration_whenWrongPassword_shouldReturn200Status() {
+        String reason = "reason";
+        Long registrationId = 34L;
+        registrationCredentials = createRegistrationCredentials(1L, "1235");
+
+        when(registrationService.declineRegistration(registrationId, reason, registrationCredentials))
+                .thenThrow(PasswordIncorrectException.class);
+
+        mvc.perform(patch("/registrations/{registrationId}/status/decline", registrationId)
+                        .param("reason", reason)
+                        .content(mapper.writeValueAsString(registrationCredentials))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+
+        verify(registrationService, times(1)).declineRegistration(registrationId, reason, registrationCredentials);
     }
 
     private NewRegistrationDto createNewRegistrationDto(String username, String email, String phone, Long eventId) {
@@ -536,10 +742,11 @@ public class RegistrationControllerTest {
                 .build();
     }
 
-    private DeleteRegistrationDto createDeleteRegistrationDto(Long id, String password) {
-        return DeleteRegistrationDto.builder()
+    private RegistrationCredentials createRegistrationCredentials(Long id, String password) {
+        return RegistrationCredentials.builder()
                 .id(id)
-                .password(password).build();
+                .password(password)
+                .build();
     }
 
     private RegistrationResponseDto createResponseDto() {
