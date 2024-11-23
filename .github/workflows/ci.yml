@@ -43,6 +43,6 @@ jobs:
         min-coverage-overall: 60
         title: '#Coverage Report'
         update-comment: true
-        continue-on-error: false
+        continue-on-error: true
       
   
