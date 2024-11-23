@@ -7,6 +7,19 @@ on:
     branches: [ "develop" ]
 
 jobs:
+  checkstyle:
+    name: runner / checkstyle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dbelyaev/action-checkstyle@master
+        with:
+          reporter: github-pr-review
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          level: warning
+          checkstyle_config: checkstyle.xml
+          fail_on_error: true
+          
   build:
     runs-on: ubuntu-latest
     steps:
@@ -17,17 +30,19 @@ jobs:
         java-version: '21'
         distribution: 'corretto'
         cache: maven
-    - name: Build with Maven
+        
+    - name: Build, test and verify
       run: mvn -B verify --file pom.xml
+
+    - name: Add coverage to PR
+      id: jacoco
+      uses: madrapps/jacoco-report@v1.6.1
+      with:
+        paths: ${{ github.workspace }}/target/site/jacoco/jacoco.xml
+        token: ${{ secrets.GITHUB_TOKEN }}
+        min-coverage-overall: 60
+        title: '#Coverage Report'
+        update-comment: true
+        continue-on-error: false
       
-  checkstyle:
-    name: runner / checkstyle
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dbelyaev/action-checkstyle@master
-        with:
-          reporter: github-pr-review
-          level: warning
-          checkstyle_config: checkstyle.xml
-          fail_on_error: true
+  
