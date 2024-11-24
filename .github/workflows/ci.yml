@@ -7,24 +7,32 @@ on:
     branches: [ "develop" ]
 
 jobs:
-  checkstyle:
-    name: runner / checkstyle
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dbelyaev/action-checkstyle@master
-        with:
-          reporter: github-pr-review
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          level: warning
-          checkstyle_config: checkstyle.xml
-          fail-on-error: true
+#  checkstyle:
+#    name: runner / checkstyle
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: dbelyaev/action-checkstyle@master
+#        with:
+#          reporter: github-pr-review
+#          github_token: ${{ secrets.GITHUB_TOKEN }}
+#          level: warning
+#          checkstyle_config: checkstyle.xml
+#          fail-on-error: true
           
   build:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
     - uses: actions/checkout@v4
+    - name: Checkstyle
+      uses: dbelyaev/action-checkstyle@master
+      with:
+        reporter: github-pr-review
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        level: warning
+        checkstyle_config: checkstyle.xml
+        fail-on-error: true
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
