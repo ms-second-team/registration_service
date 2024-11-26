@@ -18,10 +18,9 @@ jobs:
           key: ${‎{ secrets.DEPLOY_KEY }‎}
           port: 22
           script: |
-            cd deploy
-            docker stop ${‎{ vars.DOCKER_CONTAINER_NAME }‎}
-            docker rm ${‎{ vars.DOCKER_CONTAINER_NAME }‎}
-            docker image rm ${‎{ vars.DOCKER_IMAGE_NAME }‎}
-            docker-compose up ${‎{ vars.DOCKER_CONTAINER_NAME }‎}
+            cd ~/home/java-team2/deploy
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/registration_service
+            docker-compose up -d --build ${‎{ vars.DOCKER_CONTAINER_NAME }‎}
+            docker image prune
           
         
