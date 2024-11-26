@@ -18,6 +18,7 @@ jobs:
           key: ${‎{ secrets.DEPLOY_KEY }‎}
           port: 22
           script: |
+            cd deploy
             docker stop ${‎{ vars.DOCKER_CONTAINER_NAME }‎}
             docker rm ${‎{ vars.DOCKER_CONTAINER_NAME }‎}
             docker image rm ${‎{ vars.DOCKER_IMAGE_NAME }‎}
