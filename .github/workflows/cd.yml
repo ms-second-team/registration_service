@@ -19,8 +19,8 @@ jobs:
           port: 22
           script: |
             cd ~/home/java-team2/deploy
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/registration_service
-            docker-compose up -d --build ${‎{ vars.DOCKER_CONTAINER_NAME }‎}
-            docker image prune
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/registration_service
+            sudo docker-compose up -d --build ${‎{ vars.DOCKER_CONTAINER_NAME }‎}
+            sudo docker image prune
           
         
