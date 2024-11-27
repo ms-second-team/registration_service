@@ -12,12 +12,10 @@ jobs:
       - name: Update docker container
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${‎{ secrets.HOST }‎}
-          username: ${‎{ secrets.DEPLOY_USERNAME }‎}
-          key: ${‎{ secrets.DEPLOY_KEY }‎}
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          key: ${{ secrets.DEPLOY_KEY }}
           port: 22
           script: |
             cd ~/home/java-team2/deploy
-            ./service-update.sh ${‎{ vars.DOCKER_CONTAINER_NAME }‎}
-          
-        
+            ./service-update.sh ${{ vars.DOCKER_CONTAINER_NAME }}
