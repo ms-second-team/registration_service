@@ -13,5 +13,5 @@ jobs:
         run: mkdir -p ~/.ssh && install -m 600 -D /dev/null ~/.ssh/id_rsa && echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa && ssh-keyscan -H ${{ secrets.SSH_HOST }} > ~/.ssh/known_hosts
       - name: Connect and deploy
         run: >
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "./service-update.sh
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "bash ~/deploy/service-update.sh
           ${{ vars.DOCKER_CONTAINER_NAME }}"
