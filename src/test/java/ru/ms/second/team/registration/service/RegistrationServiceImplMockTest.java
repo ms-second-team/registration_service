@@ -45,7 +45,6 @@ import static org.mockito.Mockito.when;
 import static ru.ms.second.team.registration.model.RegistrationStatus.APPROVED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.DECLINED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.PENDING;
-import static ru.ms.second.team.registration.model.RegistrationStatus.WAITING;
 
 @ExtendWith(MockitoExtension.class)
 public class RegistrationServiceImplMockTest {
