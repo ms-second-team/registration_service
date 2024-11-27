@@ -1,9 +1,6 @@
 name: Deploy on server via docker
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
