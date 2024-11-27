@@ -9,7 +9,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - name: Update docker container
         uses: appleboy/ssh-action@v1.2.0
         with:
