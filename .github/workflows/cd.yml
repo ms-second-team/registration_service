@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Update docker container
-      - uses: appleboy/scp-action@v0.1.3
+      - uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${‎{ secrets.DEPLOY_HOST }‎}
           username: ${‎{ secrets.DEPLOY_USERNAME }‎}
