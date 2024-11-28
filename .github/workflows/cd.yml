@@ -18,3 +18,4 @@ jobs:
           SCRIPT_BEFORE: |
             cd ~/home/java-team2/deploy
             ./service-update.sh ${{ vars.DOCKER_CONTAINER_NAME }}
+          SCRIPT_BEFORE_REQUIRED: true
