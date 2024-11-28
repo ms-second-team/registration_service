@@ -16,6 +16,6 @@ jobs:
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           REMOTE_USER:  ${{ secrets.SSH_USER }}
           SCRIPT_BEFORE: |
-            cd ~/home/java-team2/deploy
+            cd deploy
             ./service-update.sh ${{ vars.DOCKER_CONTAINER_NAME }}
           SCRIPT_BEFORE_REQUIRED: true
