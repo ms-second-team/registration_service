@@ -6,6 +6,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.ms.second.team.registration.client.EventClient;
+import ru.ms.second.team.registration.dto.event.EventDto;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
 import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
 import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
@@ -27,6 +29,11 @@ import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
 
+import static ru.ms.second.team.registration.model.RegistrationStatus.APPROVED;
+import static ru.ms.second.team.registration.model.RegistrationStatus.DECLINED;
+import static ru.ms.second.team.registration.model.RegistrationStatus.PENDING;
+import static ru.ms.second.team.registration.model.RegistrationStatus.WAITING;
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -35,6 +42,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final JpaRegistrationRepository registrationRepository;
     private final DeclinedRegistrationRepository declinedRegistrationRepository;
     private final RegistrationMapper registrationMapper;
+    private final EventClient eventClient;
 
     @Override
     public CreatedRegistrationResponseDto create(NewRegistrationDto creationDto) {
@@ -90,22 +98,26 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
-    public RegistrationStatus updateRegistrationStatus(Long registrationId, RegistrationStatus newStatus,
+    @Transactional
+    public RegistrationStatus updateRegistrationStatus(Long userId, Long registrationId, RegistrationStatus newStatus,
                                                        RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
         registration.setStatus(newStatus);
+        if (newStatus.equals(APPROVED)) {
+            checkEventParticipationLimit(userId, registration, newStatus);
+        }
         final Registration updatedRegistration = registrationRepository.save(registration);
         log.info("New status '{}' for registration with id '{}'", newStatus, registrationId);
         return updatedRegistration.getStatus();
     }
 
     @Override
-    public RegistrationStatus declineRegistration(Long registrationId, String reason,
+    public RegistrationStatus declineRegistration(Long userId, Long registrationId, String reason,
                                                   RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
-        registration.setStatus(RegistrationStatus.DECLINED);
+        registration.setStatus(DECLINED);
         final Registration updatedRegistration = registrationRepository.save(registration);
         saveDeclineReason(reason, updatedRegistration);
         log.debug("Registration with id '{}' was declined. Reason: {}", registrationId, reason);
@@ -146,9 +158,9 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     private void updateStatusOfClosestWaitingRegistration(Registration registration) {
-        if (registration.getStatus().equals(RegistrationStatus.APPROVED)) {
+        if (registration.getStatus().equals(APPROVED)) {
             Registration closestRegistration = registrationRepository.findEarliestWaitingRegistration();
-            closestRegistration.setStatus(RegistrationStatus.PENDING);
+            closestRegistration.setStatus(PENDING);
             registrationRepository.save(closestRegistration);
         }
     }
@@ -164,13 +176,27 @@ public class RegistrationServiceImpl implements RegistrationService {
     private RegistrationCount convertMapToRegistrationsCount(Map<String, Long> statusToRegistrationsCount) {
         return RegistrationCount.builder()
                 .numberOfPendingRegistrations(statusToRegistrationsCount
-                        .getOrDefault(RegistrationStatus.PENDING.name(), 0L))
+                        .getOrDefault(PENDING.name(), 0L))
                 .numberOfApprovedRegistrations(statusToRegistrationsCount
-                        .getOrDefault(RegistrationStatus.APPROVED.name(), 0L))
+                        .getOrDefault(APPROVED.name(), 0L))
                 .numberOfWaitingRegistrations(statusToRegistrationsCount
-                        .getOrDefault(RegistrationStatus.WAITING.name(), 0L))
+                        .getOrDefault(WAITING.name(), 0L))
                 .numberOfDeclinedRegistrations(statusToRegistrationsCount
-                        .getOrDefault(RegistrationStatus.DECLINED.name(), 0L))
+                        .getOrDefault(DECLINED.name(), 0L))
                 .build();
+    }
+
+    private void checkEventParticipationLimit(Long userId, Registration registration, RegistrationStatus newStatus) {
+        final EventDto event = eventClient.getEventById(userId, registration.getEventId()).getBody();
+        final int eventParticipantLimit = event.participantLimit();
+        final List<Registration> approvedRegistrations = registrationRepository.searchRegistrations(List.of(APPROVED),
+                registration.getEventId());
+        if (approvedRegistrations.size() > eventParticipantLimit && eventParticipantLimit != 0) {
+            approvedRegistrations.stream()
+                    .skip(eventParticipantLimit)
+                    .forEach(reg -> reg.setStatus(WAITING));
+            registrationRepository.saveAll(approvedRegistrations);
+            registration.setStatus(WAITING);
+        }
     }
 }

@@ -1,5 +1,6 @@
 package ru.ms.second.team.registration.service;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -41,6 +42,13 @@ public class RegistrationServiceImplIntegrateTest {
 
     @Autowired
     RegistrationServiceImpl registrationService;
+
+    private Long userId;
+
+    @BeforeEach
+    void init() {
+        userId = 5L;
+    }
 
     @Test
     void createRegistration() {
@@ -263,7 +271,8 @@ public class RegistrationServiceImplIntegrateTest {
 
         RegistrationStatus newStatus = APPROVED;
 
-        RegistrationStatus updatedStatus = registrationService.updateRegistrationStatus(createdRegistration.id(), newStatus, credentials);
+        RegistrationStatus updatedStatus = registrationService.updateRegistrationStatus(userId, createdRegistration.id(),
+                newStatus, credentials);
 
         assertEquals(newStatus, updatedStatus);
     }
@@ -279,7 +288,7 @@ public class RegistrationServiceImplIntegrateTest {
         RegistrationStatus newStatus = APPROVED;
 
         PasswordIncorrectException ex = assertThrows(PasswordIncorrectException.class,
-                () -> registrationService.updateRegistrationStatus(createdRegistration.id(), newStatus, credentials));
+                () -> registrationService.updateRegistrationStatus(userId, createdRegistration.id(), newStatus, credentials));
 
         assertEquals("Password=" + incorrectPassword + " for registrationId=" +
                 createdRegistration.id() + " is not correct", ex.getLocalizedMessage());
@@ -296,7 +305,7 @@ public class RegistrationServiceImplIntegrateTest {
         RegistrationStatus newStatus = APPROVED;
 
         NotFoundException ex = assertThrows(NotFoundException.class,
-                () -> registrationService.updateRegistrationStatus(unknownId, newStatus, credentials));
+                () -> registrationService.updateRegistrationStatus(userId, unknownId, newStatus, credentials));
 
         assertEquals("Registration with id=" + unknownId + " was not found", ex.getLocalizedMessage());
     }
@@ -309,7 +318,8 @@ public class RegistrationServiceImplIntegrateTest {
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         String reason = "reason";
 
-        RegistrationStatus updatedStatus = registrationService.declineRegistration(createdRegistration.id(), reason, credentials);
+        RegistrationStatus updatedStatus = registrationService.declineRegistration(userId, createdRegistration.id(),
+                reason, credentials);
 
         assertEquals(DECLINED, updatedStatus);
     }
@@ -324,7 +334,7 @@ public class RegistrationServiceImplIntegrateTest {
         String reason = "reason";
 
         PasswordIncorrectException ex = assertThrows(PasswordIncorrectException.class,
-                () -> registrationService.declineRegistration(createdRegistration.id(), reason, credentials));
+                () -> registrationService.declineRegistration(userId, createdRegistration.id(), reason, credentials));
 
         assertEquals("Password=" + incorrectPassword + " for registrationId=" +
                 createdRegistration.id() + " is not correct", ex.getLocalizedMessage());
@@ -341,7 +351,7 @@ public class RegistrationServiceImplIntegrateTest {
 
 
         NotFoundException ex = assertThrows(NotFoundException.class,
-                () -> registrationService.declineRegistration(unknownId, reason, credentials));
+                () -> registrationService.declineRegistration(userId, unknownId, reason, credentials));
 
         assertEquals("Registration with id=" + unknownId + " was not found", ex.getLocalizedMessage());
     }
@@ -358,9 +368,9 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user3", "mail@mail.com", "78005553535", 1L);
         CreatedRegistrationResponseDto createdRegistration3 = registrationService.create(registrationDto3);
 
-        registrationService.updateRegistrationStatus(createdRegistration2.id(), APPROVED,
+        registrationService.updateRegistrationStatus(userId, createdRegistration2.id(), APPROVED,
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
-        registrationService.updateRegistrationStatus(createdRegistration3.id(), WAITING,
+        registrationService.updateRegistrationStatus(userId, createdRegistration3.id(), WAITING,
                 new RegistrationCredentials(createdRegistration3.id(), createdRegistration3.password()));
 
         List<RegistrationResponseDto> result = registrationService
@@ -383,9 +393,9 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user3", "mail@mail.com", "78005553535", 1L);
         CreatedRegistrationResponseDto createdRegistration3 = registrationService.create(registrationDto3);
 
-        registrationService.updateRegistrationStatus(createdRegistration2.id(), APPROVED,
+        registrationService.updateRegistrationStatus(userId, createdRegistration2.id(), APPROVED,
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
-        registrationService.updateRegistrationStatus(createdRegistration3.id(), WAITING,
+        registrationService.updateRegistrationStatus(userId, createdRegistration3.id(), WAITING,
                 new RegistrationCredentials(createdRegistration3.id(), createdRegistration3.password()));
 
         List<RegistrationResponseDto> result = registrationService
@@ -407,9 +417,9 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user3", "mail@mail.com", "78005553535", 2L);
         CreatedRegistrationResponseDto createdRegistration3 = registrationService.create(registrationDto3);
 
-        registrationService.updateRegistrationStatus(createdRegistration2.id(), APPROVED,
+        registrationService.updateRegistrationStatus(userId, createdRegistration2.id(), APPROVED,
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
-        registrationService.updateRegistrationStatus(createdRegistration3.id(), WAITING,
+        registrationService.updateRegistrationStatus(userId, createdRegistration3.id(), WAITING,
                 new RegistrationCredentials(createdRegistration3.id(), createdRegistration3.password()));
 
         List<RegistrationResponseDto> result = registrationService
@@ -442,9 +452,9 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user4", "mail@mail.com", "78005553535", 1L);
         CreatedRegistrationResponseDto createdRegistration4 = registrationService.create(registrationDto4);
 
-        registrationService.updateRegistrationStatus(createdRegistration2.id(), APPROVED,
+        registrationService.updateRegistrationStatus(userId, createdRegistration2.id(), APPROVED,
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
-        registrationService.updateRegistrationStatus(createdRegistration3.id(), WAITING,
+        registrationService.updateRegistrationStatus(userId, createdRegistration3.id(), WAITING,
                 new RegistrationCredentials(createdRegistration3.id(), createdRegistration3.password()));
         registrationService.findAllByEventId(0, 10, registrationDto1.eventId());
 
