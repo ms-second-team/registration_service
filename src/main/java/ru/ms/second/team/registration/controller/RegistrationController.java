@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -75,21 +76,23 @@ public class RegistrationController {
     }
 
     @PatchMapping("/{registrationId}/status")
-    public RegistrationStatus updateRegistrationStatus(@PathVariable Long registrationId,
+    public RegistrationStatus updateRegistrationStatus(@RequestHeader("X-User-Id") Long userId,
+                                                       @PathVariable Long registrationId,
                                                        @RequestParam RegistrationStatus newStatus,
                                                        @RequestBody @Valid RegistrationCredentials registrationCredentials) {
         validateStatus(newStatus);
         log.debug("Updating status for registration with id '{}'", registrationId);
-        return registrationService.updateRegistrationStatus(registrationId, newStatus, registrationCredentials);
+        return registrationService.updateRegistrationStatus(userId, registrationId, newStatus, registrationCredentials);
     }
 
     @PatchMapping("/{registrationId}/status/decline")
-    public RegistrationStatus declineRegistration(@PathVariable Long registrationId,
+    public RegistrationStatus declineRegistration(@RequestHeader("X-User-Id") Long userId,
+                                                  @PathVariable Long registrationId,
                                                   @RequestParam
                                                   @NotBlank(message = "Reason must be specified") String reason,
                                                   @RequestBody @Valid RegistrationCredentials registrationCredentials) {
         log.debug("Updating status for registration with id '{}'", registrationId);
-        return registrationService.declineRegistration(registrationId, reason, registrationCredentials);
+        return registrationService.declineRegistration(userId, registrationId, reason, registrationCredentials);
     }
 
     @GetMapping("/search")

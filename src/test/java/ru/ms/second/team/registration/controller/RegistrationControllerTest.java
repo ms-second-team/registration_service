@@ -2,6 +2,7 @@ package ru.ms.second.team.registration.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,12 @@ public class RegistrationControllerTest {
     private UpdatedRegistrationResponseDto updatedRegistrationResponseDto;
     private RegistrationCredentials registrationCredentials;
     private RegistrationResponseDto registrationResponseDto;
+    private Long userId;
+
+    @BeforeEach
+    void init() {
+        userId = 4L;
+    }
 
     @Test
     @SneakyThrows
@@ -523,17 +530,18 @@ public class RegistrationControllerTest {
         Long registrationId = 34L;
         registrationCredentials = createRegistrationCredentials(1L, "1234");
 
-        when(registrationService.updateRegistrationStatus(registrationId, status, registrationCredentials))
+        when(registrationService.updateRegistrationStatus(userId, registrationId, status, registrationCredentials))
                 .thenReturn(status);
 
         mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
                         .param("newStatus", String.valueOf(status))
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().string(mapper.writeValueAsString(status)));
 
-        verify(registrationService, times(1)).updateRegistrationStatus(registrationId, status,
+        verify(registrationService, times(1)).updateRegistrationStatus(userId, registrationId, status,
                 registrationCredentials);
     }
 
@@ -546,12 +554,13 @@ public class RegistrationControllerTest {
         registrationCredentials = createRegistrationCredentials(1L, "1234");
 
         mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
+                        .header("X-User-Id", userId)
                         .param("newStatus", String.valueOf(status))
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
-        verify(registrationService, never()).updateRegistrationStatus(any(), any(), any());
+        verify(registrationService, never()).updateRegistrationStatus(any(), any(), any(), any());
     }
 
     @Test
@@ -563,16 +572,18 @@ public class RegistrationControllerTest {
         registrationCredentials = createRegistrationCredentials(1L, "1234");
 
 
-        when(registrationService.updateRegistrationStatus(registrationId, status, registrationCredentials))
+        when(registrationService.updateRegistrationStatus(userId, registrationId, status, registrationCredentials))
                 .thenThrow(NotFoundException.class);
 
         mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
                         .param("newStatus", String.valueOf(status))
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
 
-        verify(registrationService, times(1)).updateRegistrationStatus(registrationId, status, registrationCredentials);
+        verify(registrationService, times(1)).updateRegistrationStatus(userId, registrationId,
+                status, registrationCredentials);
     }
 
     @Test
@@ -584,16 +595,18 @@ public class RegistrationControllerTest {
         registrationCredentials = createRegistrationCredentials(1L, "1234");
 
 
-        when(registrationService.updateRegistrationStatus(registrationId, status, registrationCredentials))
+        when(registrationService.updateRegistrationStatus(userId, registrationId, status, registrationCredentials))
                 .thenThrow(PasswordIncorrectException.class);
 
         mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
                         .param("newStatus", String.valueOf(status))
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
-        verify(registrationService, times(1)).updateRegistrationStatus(registrationId, status, registrationCredentials);
+        verify(registrationService, times(1)).updateRegistrationStatus(userId, registrationId,
+                status, registrationCredentials);
     }
 
     @Test
@@ -654,17 +667,19 @@ public class RegistrationControllerTest {
         RegistrationStatus status = RegistrationStatus.DECLINED;
         registrationCredentials = createRegistrationCredentials(1L, "1234");
 
-        when(registrationService.declineRegistration(registrationId, reason, registrationCredentials))
+        when(registrationService.declineRegistration(userId, registrationId, reason, registrationCredentials))
                 .thenReturn(status);
 
         mvc.perform(patch("/registrations/{registrationId}/status/decline", registrationId)
                         .param("reason", reason)
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().string(mapper.writeValueAsString(status)));
 
-        verify(registrationService, times(1)).declineRegistration(registrationId, reason, registrationCredentials);
+        verify(registrationService, times(1)).declineRegistration(userId, registrationId,
+                reason, registrationCredentials);
     }
 
     @Test
@@ -675,16 +690,18 @@ public class RegistrationControllerTest {
         Long registrationId = 34L;
         registrationCredentials = createRegistrationCredentials(1L, "1234");
 
-        when(registrationService.declineRegistration(registrationId, reason, registrationCredentials))
+        when(registrationService.declineRegistration(userId, registrationId, reason, registrationCredentials))
                 .thenThrow(NotFoundException.class);
 
         mvc.perform(patch("/registrations/{registrationId}/status/decline", registrationId)
                         .param("reason", reason)
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
 
-        verify(registrationService, times(1)).declineRegistration(registrationId, reason, registrationCredentials);
+        verify(registrationService, times(1)).declineRegistration(userId,
+                registrationId, reason, registrationCredentials);
     }
 
     @Test
@@ -695,16 +712,18 @@ public class RegistrationControllerTest {
         Long registrationId = 34L;
         registrationCredentials = createRegistrationCredentials(1L, "1235");
 
-        when(registrationService.declineRegistration(registrationId, reason, registrationCredentials))
+        when(registrationService.declineRegistration(userId, registrationId, reason, registrationCredentials))
                 .thenThrow(PasswordIncorrectException.class);
 
         mvc.perform(patch("/registrations/{registrationId}/status/decline", registrationId)
                         .param("reason", reason)
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
-        verify(registrationService, times(1)).declineRegistration(registrationId, reason, registrationCredentials);
+        verify(registrationService, times(1)).declineRegistration(userId, registrationId,
+                reason, registrationCredentials);
     }
 
     private NewRegistrationDto createNewRegistrationDto(String username, String email, String phone, Long eventId) {

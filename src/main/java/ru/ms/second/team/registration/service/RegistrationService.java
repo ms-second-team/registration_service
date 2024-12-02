@@ -23,10 +23,10 @@ public interface RegistrationService {
 
     void delete(RegistrationCredentials deleteDto);
 
-    RegistrationStatus updateRegistrationStatus(Long registrationId, RegistrationStatus newStatus,
+    RegistrationStatus updateRegistrationStatus(Long userId, Long registrationId, RegistrationStatus newStatus,
                                                 RegistrationCredentials registrationCredentials);
 
-    RegistrationStatus declineRegistration(Long registrationId, String reason,
+    RegistrationStatus declineRegistration(Long userId, Long registrationId, String reason,
                                            RegistrationCredentials registrationCredentials);
 
     List<RegistrationResponseDto> searchRegistrations(List<RegistrationStatus> statuses, Long eventId);
