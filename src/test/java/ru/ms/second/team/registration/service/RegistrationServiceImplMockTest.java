@@ -371,7 +371,8 @@ public class RegistrationServiceImplMockTest {
         when(registrationRepository.save(any()))
                 .thenReturn(registration);
 
-        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status, registrationCredentials);
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status,
+                registrationCredentials);
 
         assertEquals(status, result);
 
@@ -403,7 +404,8 @@ public class RegistrationServiceImplMockTest {
         when(registrationRepository.save(any()))
                 .thenReturn(registration);
 
-        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status, registrationCredentials);
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status,
+                registrationCredentials);
 
         assertEquals(status, result);
 
@@ -420,8 +422,8 @@ public class RegistrationServiceImplMockTest {
     @DisplayName("Update registration status to APPROVED, limit not exceeded")
     void updateRegistrationStatus_whenRegistrationFoundAndStatusApprovedWhenLimitNotExceeded_ShouldUpdateStatus() {
         RegistrationStatus status = APPROVED;
-        registration = createRegistration(
-                1L, "user1", "mail@mail.com", "78005553535"
+        registration = createRegistrationWithStatus(
+                1L, "user1", "mail@mail.com", "78005553535", APPROVED
         );
         registrationCredentials = createRegistrationCredentials("1234");
         EventDto eventDto = createEvent(userId, 1);
@@ -435,7 +437,8 @@ public class RegistrationServiceImplMockTest {
         when(registrationRepository.save(any()))
                 .thenReturn(registration);
 
-        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status, registrationCredentials);
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status,
+                registrationCredentials);
 
         assertEquals(status, result);
 
@@ -445,6 +448,123 @@ public class RegistrationServiceImplMockTest {
         assertEquals(status, registrationToSave.getStatus());
 
         verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+    }
+
+    @Test
+    @DisplayName("Update registration status to APPROVED, limit exceeded")
+    void updateRegistrationStatus_whenRegistrationFoundAndStatusApprovedWhenLimitExceeded_ShouldMakeOneWAITNG() {
+        Registration registration1 = createRegistrationWithStatus(
+                1L, "user1", "mail@mail.com", "78005553535", APPROVED
+        );
+        Registration registration2 = createRegistrationWithStatus(
+                2L, "user2", "mail2@mail.com", "78005553535", APPROVED
+        );
+        Registration registration3 = createRegistrationWithStatus(
+                3L, "user3", "mail3@mail.com", "78005553535", APPROVED
+        );
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 1);
+
+        when(registrationRepository.findById(registration1.getId()))
+                .thenReturn(Optional.of(registration1));
+        when(eventClient.getEventById(userId, registration1.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(registrationRepository.searchRegistrations(List.of(APPROVED), eventDto.id()))
+                .thenReturn(List.of(registration2, registration3));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration1);
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration1.getId(), APPROVED,
+                registrationCredentials);
+
+        assertEquals(WAITING, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(WAITING, registrationToSave.getStatus());
+        assertEquals(WAITING, registration3.getStatus());
+
+        verify(registrationRepository, times(1)).findById(registration1.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+    }
+
+    @Test
+    @DisplayName("Update registration status to APPROVED, all APPROVED")
+    void updateRegistrationStatus_whenRegistrationFoundAndStatusApprovedWhenLimitNotExceeded_ShouldMakeAllApproved() {
+        Registration registration1 = createRegistrationWithStatus(
+                1L, "user1", "mail@mail.com", "78005553535", APPROVED
+        );
+        Registration registration2 = createRegistrationWithStatus(
+                2L, "user2", "mail2@mail.com", "78005553535", APPROVED
+        );
+        Registration registration3 = createRegistrationWithStatus(
+                3L, "user3", "mail3@mail.com", "78005553535", APPROVED
+        );
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 3);
+
+        when(registrationRepository.findById(registration1.getId()))
+                .thenReturn(Optional.of(registration1));
+        when(eventClient.getEventById(userId, registration1.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(registrationRepository.searchRegistrations(List.of(APPROVED), eventDto.id()))
+                .thenReturn(List.of(registration2, registration3));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration1);
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration1.getId(), APPROVED,
+                registrationCredentials);
+
+        assertEquals(APPROVED, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(APPROVED, registrationToSave.getStatus());
+        assertEquals(APPROVED, registration3.getStatus());
+
+        verify(registrationRepository, times(1)).findById(registration1.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+    }
+
+    @Test
+    @DisplayName("Update registration status to APPROVED, without limit")
+    void updateRegistrationStatus_whenRegistrationFoundAndStatusApprovedWithoutLimit_ShouldMakeAllApproved() {
+        Registration registration1 = createRegistrationWithStatus(
+                1L, "user1", "mail@mail.com", "78005553535", APPROVED
+        );
+        Registration registration2 = createRegistrationWithStatus(
+                2L, "user2", "mail2@mail.com", "78005553535", APPROVED
+        );
+        Registration registration3 = createRegistrationWithStatus(
+                3L, "user3", "mail3@mail.com", "78005553535", APPROVED
+        );
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 0);
+
+        when(registrationRepository.findById(registration1.getId()))
+                .thenReturn(Optional.of(registration1));
+        when(eventClient.getEventById(userId, registration1.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(registrationRepository.searchRegistrations(List.of(APPROVED), eventDto.id()))
+                .thenReturn(List.of(registration2, registration3));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration1);
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration1.getId(), APPROVED,
+                registrationCredentials);
+
+        assertEquals(APPROVED, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(APPROVED, registrationToSave.getStatus());
+        assertEquals(APPROVED, registration3.getStatus());
+
+        verify(registrationRepository, times(1)).findById(registration1.getId());
         verify(registrationRepository, times(1)).save(registrationToSave);
     }
 
@@ -590,7 +710,7 @@ public class RegistrationServiceImplMockTest {
                         "DECLINED", 2L,
                         "APPROVED", 3L,
                         "PENDING", 4L
-                        ));
+                ));
 
         RegistrationCount countByStatus = registrationService.getRegistrationsCountByEventId(eventId);
 
@@ -664,6 +784,22 @@ public class RegistrationServiceImplMockTest {
                 .eventId(1L)
                 .password("1234")
                 .status(PENDING)
+                .build();
+    }
+
+    private Registration createRegistrationWithStatus(Long id,
+                                                      String userName,
+                                                      String email,
+                                                      String phone,
+                                                      RegistrationStatus status) {
+        return Registration.builder()
+                .id(id)
+                .username(userName)
+                .email(email)
+                .phone(phone)
+                .eventId(1L)
+                .password("1234")
+                .status(status)
                 .build();
     }
 
