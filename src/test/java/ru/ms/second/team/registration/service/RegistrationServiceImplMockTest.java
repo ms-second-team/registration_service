@@ -1,5 +1,6 @@
 package ru.ms.second.team.registration.service;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +13,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import ru.ms.second.team.registration.client.EventClient;
+import ru.ms.second.team.registration.dto.event.EventDto;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
 import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
 import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
@@ -29,6 +34,7 @@ import ru.ms.second.team.registration.repository.jpa.DeclinedRegistrationReposit
 import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.impl.RegistrationServiceImpl;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +51,7 @@ import static org.mockito.Mockito.when;
 import static ru.ms.second.team.registration.model.RegistrationStatus.APPROVED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.DECLINED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.PENDING;
+import static ru.ms.second.team.registration.model.RegistrationStatus.WAITING;
 
 @ExtendWith(MockitoExtension.class)
 public class RegistrationServiceImplMockTest {
@@ -52,11 +59,13 @@ public class RegistrationServiceImplMockTest {
     @InjectMocks
     private RegistrationServiceImpl registrationService;
     @Mock
-    private JpaRegistrationRepository repository;
+    private JpaRegistrationRepository registrationRepository;
     @Mock
     private DeclinedRegistrationRepository declinedRegistrationRepository;
     @Mock
     private RegistrationMapper mapper;
+    @Mock
+    private EventClient eventClient;
 
     private UpdateRegistrationDto updateRegistrationDto;
     private UpdatedRegistrationResponseDto updatedRegistrationResponseDto;
@@ -67,6 +76,12 @@ public class RegistrationServiceImplMockTest {
     private ArgumentCaptor<Registration> captor;
     @Captor
     private ArgumentCaptor<DeclinedRegistration> declinedRegistrationCaptor;
+    private Long userId;
+
+    @BeforeEach
+    void init() {
+        userId = 5L;
+    }
 
     @Test
     @DisplayName("Created registration")
@@ -80,7 +95,7 @@ public class RegistrationServiceImplMockTest {
 
         when(mapper.toModel(any(NewRegistrationDto.class))).thenReturn(registrationFromMapper);
         when(mapper.toCreatedDto(any(Registration.class))).thenReturn(createdRegistrationResponseDto);
-        when(repository.save(any(Registration.class))).thenReturn(registration);
+        when(registrationRepository.save(any(Registration.class))).thenReturn(registration);
 
         CreatedRegistrationResponseDto result = registrationService.create(newRegistrationDto);
 
@@ -89,7 +104,7 @@ public class RegistrationServiceImplMockTest {
 
         verify(mapper, times(1)).toModel(any(NewRegistrationDto.class));
         verify(mapper, times(1)).toCreatedDto(any(Registration.class));
-        verify(repository, times(1)).save(any(Registration.class));
+        verify(registrationRepository, times(1)).save(any(Registration.class));
     }
 
     @Test
@@ -106,9 +121,9 @@ public class RegistrationServiceImplMockTest {
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user2", "mail@mail.com", "78005553535");
 
-        when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
         when(mapper.toUpdatedDto(any(Registration.class))).thenReturn(updatedRegistrationResponseDto);
-        when(repository.save(any(Registration.class))).thenReturn(updatedRegistration);
+        when(registrationRepository.save(any(Registration.class))).thenReturn(updatedRegistration);
 
         UpdatedRegistrationResponseDto result = registrationService.update(updateRegistrationDto);
 
@@ -117,8 +132,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(registration.getPhone(), result.phone(), "phones must be same");
 
         verify(mapper, times(1)).toUpdatedDto(any(Registration.class));
-        verify(repository, times(1)).findById(anyLong());
-        verify(repository, times(1)).save(any(Registration.class));
+        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).save(any(Registration.class));
     }
 
     @Test
@@ -135,9 +150,9 @@ public class RegistrationServiceImplMockTest {
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "mail@gmail.com", "78005553535");
 
-        when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
         when(mapper.toUpdatedDto(any(Registration.class))).thenReturn(updatedRegistrationResponseDto);
-        when(repository.save(any(Registration.class))).thenReturn(updatedRegistration);
+        when(registrationRepository.save(any(Registration.class))).thenReturn(updatedRegistration);
 
         UpdatedRegistrationResponseDto result = registrationService.update(updateRegistrationDto);
 
@@ -146,8 +161,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(registration.getPhone(), result.phone(), "phones must be same");
 
         verify(mapper, times(1)).toUpdatedDto(any(Registration.class));
-        verify(repository, times(1)).findById(anyLong());
-        verify(repository, times(1)).save(any(Registration.class));
+        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).save(any(Registration.class));
     }
 
     @Test
@@ -164,9 +179,9 @@ public class RegistrationServiceImplMockTest {
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "mail@mail.com", "70123456789");
 
-        when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
         when(mapper.toUpdatedDto(any(Registration.class))).thenReturn(updatedRegistrationResponseDto);
-        when(repository.save(any(Registration.class))).thenReturn(updatedRegistration);
+        when(registrationRepository.save(any(Registration.class))).thenReturn(updatedRegistration);
 
         UpdatedRegistrationResponseDto result = registrationService.update(updateRegistrationDto);
 
@@ -175,8 +190,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(updateRegistrationDto.phone(), result.phone(), "phones must be same");
 
         verify(mapper, times(1)).toUpdatedDto(any(Registration.class));
-        verify(repository, times(1)).findById(anyLong());
-        verify(repository, times(1)).save(any(Registration.class));
+        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).save(any(Registration.class));
     }
 
     @Test
@@ -194,9 +209,9 @@ public class RegistrationServiceImplMockTest {
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user2", "mail@gmail.com", "70123456789");
 
-        when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
         when(mapper.toUpdatedDto(any(Registration.class))).thenReturn(updatedRegistrationResponseDto);
-        when(repository.save(any(Registration.class))).thenReturn(updatedRegistration);
+        when(registrationRepository.save(any(Registration.class))).thenReturn(updatedRegistration);
 
         UpdatedRegistrationResponseDto result = registrationService.update(updateRegistrationDto);
 
@@ -205,8 +220,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(updateRegistrationDto.phone(), result.phone(), "phones must be same");
 
         verify(mapper, times(1)).toUpdatedDto(any(Registration.class));
-        verify(repository, times(1)).findById(anyLong());
-        verify(repository, times(1)).save(any(Registration.class));
+        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).save(any(Registration.class));
     }
 
     @Test
@@ -218,11 +233,11 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
 
-        when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
 
         assertThrows(PasswordIncorrectException.class, () -> registrationService.update(updateRegistrationDto));
 
-        verify(repository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).findById(anyLong());
     }
 
     @Test
@@ -235,7 +250,7 @@ public class RegistrationServiceImplMockTest {
                 createResponseDto(registration.getUsername(), registration.getEmail(), registration.getPhone());
 
         when(mapper.toRegistrationDto(any(Registration.class))).thenReturn(registrationResponseDto);
-        when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
 
         RegistrationResponseDto result = registrationService.findById(1L);
 
@@ -244,17 +259,17 @@ public class RegistrationServiceImplMockTest {
         assertEquals(registration.getPhone(), result.phone(), "phones must be same");
 
         verify(mapper, times(1)).toRegistrationDto(any(Registration.class));
-        verify(repository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).findById(anyLong());
     }
 
     @Test
     @DisplayName("Registration retrieval failed because object was not found")
     void getRegistrationFailNotFound() {
-        when(repository.findById(anyLong())).thenReturn(Optional.empty());
+        when(registrationRepository.findById(anyLong())).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> registrationService.findById(1L));
 
-        verify(repository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).findById(anyLong());
     }
 
     @Test
@@ -268,7 +283,7 @@ public class RegistrationServiceImplMockTest {
         Page<Registration> page = new PageImpl(List.of(registration));
 
 
-        when(repository.findAllByEventId(1L, PageRequest.of(0, 10))).thenReturn(page);
+        when(registrationRepository.findAllByEventId(1L, PageRequest.of(0, 10))).thenReturn(page);
         when(mapper.toRegistraionDtoList(any(List.class))).thenReturn(List.of(registrationResponseDto));
 
         List<RegistrationResponseDto> result = registrationService.findAllByEventId(0, 10, 1L);
@@ -277,20 +292,20 @@ public class RegistrationServiceImplMockTest {
         assertEquals(registration.getEmail(), result.get(0).email(), "emails must be same");
         assertEquals(registration.getPhone(), result.get(0).phone(), "phones must be same");
 
-        verify(repository, times(1)).findAllByEventId(anyLong(), any(Pageable.class));
+        verify(registrationRepository, times(1)).findAllByEventId(anyLong(), any(Pageable.class));
         verify(mapper, times(1)).toRegistraionDtoList(any(List.class));
     }
 
     @Test
     @DisplayName("Retrieve all registrations by event id. Successful even when empty")
     void getAllRegistrationsByEventIdEmpty() {
-        when(repository.findAllByEventId(1L, PageRequest.of(0, 10))).thenReturn(Page.empty());
+        when(registrationRepository.findAllByEventId(1L, PageRequest.of(0, 10))).thenReturn(Page.empty());
 
         List<RegistrationResponseDto> result = registrationService.findAllByEventId(0, 10, 1L);
 
         assertEquals(0, result.size());
 
-        verify(repository, times(1)).findAllByEventId(anyLong(), any(Pageable.class));
+        verify(registrationRepository, times(1)).findAllByEventId(anyLong(), any(Pageable.class));
     }
 
     @Test
@@ -301,12 +316,12 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
 
-        when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
 
         registrationService.delete(registrationCredentials);
 
-        verify(repository, times(1)).findById(anyLong());
-        verify(repository, times(1)).deleteById(registrationCredentials.id());
+        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).deleteById(registrationCredentials.id());
         verify(declinedRegistrationRepository, times(1))
                 .deleteAllByRegistrationId(registrationCredentials.id());
     }
@@ -319,12 +334,12 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
 
-        when(repository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
 
         assertThrows(PasswordIncorrectException.class, () -> registrationService.delete(registrationCredentials));
 
-        verify(repository, times(1)).findById(anyLong());
-        verify(repository, never()).deleteById(registrationCredentials.id());
+        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, never()).deleteById(registrationCredentials.id());
         verify(declinedRegistrationRepository, never()).deleteAllByRegistrationId(registrationCredentials.id());
     }
 
@@ -333,40 +348,224 @@ public class RegistrationServiceImplMockTest {
     void deleteFailNotFound() {
         registrationCredentials = createRegistrationCredentials("4321");
 
-        when(repository.findById(anyLong())).thenReturn(Optional.empty());
+        when(registrationRepository.findById(anyLong())).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> registrationService.delete(registrationCredentials));
 
-        verify(repository, times(1)).findById(anyLong());
-        verify(repository, never()).deleteById(registrationCredentials.id());
+        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, never()).deleteById(registrationCredentials.id());
         verify(declinedRegistrationRepository, never()).deleteAllByRegistrationId(registrationCredentials.id());
     }
 
     @Test
-    @DisplayName("Update registration status")
-    void updateRegistrationStatus_whenRegistrationFound_ShouldUpdateStatus() {
-        RegistrationStatus status = APPROVED;
+    @DisplayName("Update registration status to WAITING")
+    void updateRegistrationStatus_whenRegistrationFoundAndStatusWaiting_ShouldUpdateStatus() {
+        RegistrationStatus status = WAITING;
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
         registrationCredentials = createRegistrationCredentials("1234");
 
-        when(repository.findById(registration.getId()))
+        when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
-        when(repository.save(any()))
+        when(registrationRepository.save(any()))
                 .thenReturn(registration);
 
-        RegistrationStatus result = registrationService.updateRegistrationStatus(registration.getId(), status, registrationCredentials);
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status,
+                registrationCredentials);
 
         assertEquals(status, result);
 
-        verify(repository).save(captor.capture());
+        verify(registrationRepository).save(captor.capture());
         Registration registrationToSave = captor.getValue();
 
         assertEquals(status, registrationToSave.getStatus());
 
-        verify(repository, times(1)).findById(registration.getId());
-        verify(repository, times(1)).save(registrationToSave);
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+    }
+
+    @Test
+    @DisplayName("Update registration status to APPROVED")
+    void updateRegistrationStatus_whenRegistrationFoundAndStatusApproved_ShouldUpdateStatus() {
+        RegistrationStatus status = APPROVED;
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 0);
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(registrationRepository.searchRegistrations(List.of(APPROVED), eventDto.id()))
+                .thenReturn(Collections.singletonList(registration));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration);
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status,
+                registrationCredentials);
+
+        assertEquals(status, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(status, registrationToSave.getStatus());
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+    }
+
+    @Test
+    @DisplayName("Update registration status to APPROVED, limit not exceeded")
+    void updateRegistrationStatus_whenRegistrationFoundAndStatusApprovedWhenLimitNotExceeded_ShouldUpdateStatus() {
+        RegistrationStatus status = APPROVED;
+        registration = createRegistrationWithStatus(
+                1L, "user1", "mail@mail.com", "78005553535", APPROVED
+        );
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 1);
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(registrationRepository.searchRegistrations(List.of(APPROVED), eventDto.id()))
+                .thenReturn(Collections.singletonList(registration));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration);
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status,
+                registrationCredentials);
+
+        assertEquals(status, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(status, registrationToSave.getStatus());
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+    }
+
+    @Test
+    @DisplayName("Update registration status to APPROVED, limit exceeded")
+    void updateRegistrationStatus_whenRegistrationFoundAndStatusApprovedWhenLimitExceeded_ShouldMakeOneWAITNG() {
+        Registration registration1 = createRegistrationWithStatus(
+                1L, "user1", "mail@mail.com", "78005553535", APPROVED
+        );
+        Registration registration2 = createRegistrationWithStatus(
+                2L, "user2", "mail2@mail.com", "78005553535", APPROVED
+        );
+        Registration registration3 = createRegistrationWithStatus(
+                3L, "user3", "mail3@mail.com", "78005553535", APPROVED
+        );
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 1);
+
+        when(registrationRepository.findById(registration1.getId()))
+                .thenReturn(Optional.of(registration1));
+        when(eventClient.getEventById(userId, registration1.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(registrationRepository.searchRegistrations(List.of(APPROVED), eventDto.id()))
+                .thenReturn(List.of(registration2, registration3));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration1);
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration1.getId(), APPROVED,
+                registrationCredentials);
+
+        assertEquals(WAITING, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(WAITING, registrationToSave.getStatus());
+        assertEquals(WAITING, registration3.getStatus());
+
+        verify(registrationRepository, times(1)).findById(registration1.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+    }
+
+    @Test
+    @DisplayName("Update registration status to APPROVED, all APPROVED")
+    void updateRegistrationStatus_whenRegistrationFoundAndStatusApprovedWhenLimitNotExceeded_ShouldMakeAllApproved() {
+        Registration registration1 = createRegistrationWithStatus(
+                1L, "user1", "mail@mail.com", "78005553535", APPROVED
+        );
+        Registration registration2 = createRegistrationWithStatus(
+                2L, "user2", "mail2@mail.com", "78005553535", APPROVED
+        );
+        Registration registration3 = createRegistrationWithStatus(
+                3L, "user3", "mail3@mail.com", "78005553535", APPROVED
+        );
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 3);
+
+        when(registrationRepository.findById(registration1.getId()))
+                .thenReturn(Optional.of(registration1));
+        when(eventClient.getEventById(userId, registration1.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(registrationRepository.searchRegistrations(List.of(APPROVED), eventDto.id()))
+                .thenReturn(List.of(registration2, registration3));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration1);
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration1.getId(), APPROVED,
+                registrationCredentials);
+
+        assertEquals(APPROVED, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(APPROVED, registrationToSave.getStatus());
+        assertEquals(APPROVED, registration3.getStatus());
+
+        verify(registrationRepository, times(1)).findById(registration1.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+    }
+
+    @Test
+    @DisplayName("Update registration status to APPROVED, without limit")
+    void updateRegistrationStatus_whenRegistrationFoundAndStatusApprovedWithoutLimit_ShouldMakeAllApproved() {
+        Registration registration1 = createRegistrationWithStatus(
+                1L, "user1", "mail@mail.com", "78005553535", APPROVED
+        );
+        Registration registration2 = createRegistrationWithStatus(
+                2L, "user2", "mail2@mail.com", "78005553535", APPROVED
+        );
+        Registration registration3 = createRegistrationWithStatus(
+                3L, "user3", "mail3@mail.com", "78005553535", APPROVED
+        );
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 0);
+
+        when(registrationRepository.findById(registration1.getId()))
+                .thenReturn(Optional.of(registration1));
+        when(eventClient.getEventById(userId, registration1.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(registrationRepository.searchRegistrations(List.of(APPROVED), eventDto.id()))
+                .thenReturn(List.of(registration2, registration3));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration1);
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration1.getId(), APPROVED,
+                registrationCredentials);
+
+        assertEquals(APPROVED, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(APPROVED, registrationToSave.getStatus());
+        assertEquals(APPROVED, registration3.getStatus());
+
+        verify(registrationRepository, times(1)).findById(registration1.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
     }
 
     @Test
@@ -378,16 +577,16 @@ public class RegistrationServiceImplMockTest {
         );
         registrationCredentials = createRegistrationCredentials("1234");
 
-        when(repository.findById(registration.getId()))
+        when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.empty());
 
         NotFoundException ex = assertThrows(NotFoundException.class,
-                () -> registrationService.updateRegistrationStatus(registration.getId(), status, registrationCredentials));
+                () -> registrationService.updateRegistrationStatus(userId, registration.getId(), status, registrationCredentials));
 
         assertEquals("Registration with id=" + registration.getId() + " was not found", ex.getLocalizedMessage());
 
-        verify(repository, times(1)).findById(registration.getId());
-        verify(repository, never()).save(any());
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, never()).save(any());
     }
 
     @Test
@@ -399,17 +598,17 @@ public class RegistrationServiceImplMockTest {
         );
         registrationCredentials = createRegistrationCredentials("12345");
 
-        when(repository.findById(registration.getId()))
+        when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
 
         PasswordIncorrectException ex = assertThrows(PasswordIncorrectException.class,
-                () -> registrationService.updateRegistrationStatus(registration.getId(), status, registrationCredentials));
+                () -> registrationService.updateRegistrationStatus(userId, registration.getId(), status, registrationCredentials));
 
         assertEquals("Password=" + registrationCredentials.password() + " for registrationId=" +
                 registration.getId() + " is not correct", ex.getLocalizedMessage());
 
-        verify(repository, times(1)).findById(registration.getId());
-        verify(repository, never()).save(any());
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, never()).save(any());
     }
 
     @Test
@@ -422,18 +621,18 @@ public class RegistrationServiceImplMockTest {
         String reason = "reason";
         registrationCredentials = createRegistrationCredentials("1234");
 
-        when(repository.findById(registration.getId()))
+        when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
-        when(repository.save(any()))
+        when(registrationRepository.save(any()))
                 .thenReturn(registration);
         when(declinedRegistrationRepository.save(any()))
                 .thenReturn(any());
 
-        RegistrationStatus result = registrationService.declineRegistration(registration.getId(), reason, registrationCredentials);
+        RegistrationStatus result = registrationService.declineRegistration(userId, registration.getId(), reason, registrationCredentials);
 
         assertEquals(status, result);
 
-        verify(repository).save(captor.capture());
+        verify(registrationRepository).save(captor.capture());
         Registration registrationToSave = captor.getValue();
 
         assertEquals(status, registrationToSave.getStatus());
@@ -444,8 +643,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(registration.getId(), declinedRegistrationToSave.getRegistration().getId());
         assertEquals(reason, declinedRegistrationToSave.getReason());
 
-        verify(repository, times(1)).findById(registration.getId());
-        verify(repository, times(1)).save(registrationToSave);
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
         verify(declinedRegistrationRepository, times(1)).save(declinedRegistrationToSave);
     }
 
@@ -458,16 +657,16 @@ public class RegistrationServiceImplMockTest {
         String reason = "reason";
         registrationCredentials = createRegistrationCredentials("1234");
 
-        when(repository.findById(registration.getId()))
+        when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.empty());
 
         NotFoundException ex = assertThrows(NotFoundException.class,
-                () -> registrationService.declineRegistration(registration.getId(), reason, registrationCredentials));
+                () -> registrationService.declineRegistration(userId, registration.getId(), reason, registrationCredentials));
 
         assertEquals("Registration with id=" + registration.getId() + " was not found", ex.getLocalizedMessage());
 
-        verify(repository, times(1)).findById(registration.getId());
-        verify(repository, never()).save(any());
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, never()).save(any());
         verify(declinedRegistrationRepository, never()).save(any());
     }
 
@@ -482,14 +681,14 @@ public class RegistrationServiceImplMockTest {
         registrationResponseDto =
                 createResponseDto(registration.getUsername(), registration.getEmail(), registration.getPhone());
 
-        when(repository.searchRegistrations(statuses, eventId))
+        when(registrationRepository.searchRegistrations(statuses, eventId))
                 .thenReturn(Collections.singletonList(registration));
         when(mapper.toRegistraionDtoList(Collections.singletonList(registration)))
                 .thenReturn(Collections.singletonList(registrationResponseDto));
 
         registrationService.searchRegistrations(statuses, eventId);
 
-        verify(repository, times(1)).searchRegistrations(statuses, eventId);
+        verify(registrationRepository, times(1)).searchRegistrations(statuses, eventId);
         verify(mapper, times(1)).toRegistraionDtoList(Collections.singletonList(registration));
     }
 
@@ -505,13 +704,13 @@ public class RegistrationServiceImplMockTest {
         long numberOfPendingRegistrations = 4;
         Long eventId = 434L;
 
-        when(repository.getStatusToNumberOfRegistrationsForEvent(eventId))
+        when(registrationRepository.getStatusToNumberOfRegistrationsForEvent(eventId))
                 .thenReturn(Map.of(
                         "WAITING", 1L,
                         "DECLINED", 2L,
                         "APPROVED", 3L,
                         "PENDING", 4L
-                        ));
+                ));
 
         RegistrationCount countByStatus = registrationService.getRegistrationsCountByEventId(eventId);
 
@@ -520,7 +719,7 @@ public class RegistrationServiceImplMockTest {
         assertEquals(numberOfApprovedRegistrations, countByStatus.numberOfApprovedRegistrations());
         assertEquals(numberOfPendingRegistrations, countByStatus.numberOfPendingRegistrations());
 
-        verify(repository, times(1)).getStatusToNumberOfRegistrationsForEvent(eventId);
+        verify(registrationRepository, times(1)).getStatusToNumberOfRegistrationsForEvent(eventId);
     }
 
     private NewRegistrationDto createNewRegistrationDto() {
@@ -588,4 +787,31 @@ public class RegistrationServiceImplMockTest {
                 .build();
     }
 
+    private Registration createRegistrationWithStatus(Long id,
+                                                      String userName,
+                                                      String email,
+                                                      String phone,
+                                                      RegistrationStatus status) {
+        return Registration.builder()
+                .id(id)
+                .username(userName)
+                .email(email)
+                .phone(phone)
+                .eventId(1L)
+                .password("1234")
+                .status(status)
+                .build();
+    }
+
+    private EventDto createEvent(long ownerId, int participantLimit) {
+        return EventDto.builder()
+                .id(1L)
+                .name("event name " + ownerId)
+                .description("event description " + ownerId)
+                .ownerId(ownerId)
+                .startDateTime(LocalDateTime.now().plusDays(ownerId))
+                .endDateTime(LocalDateTime.now().plusMonths(ownerId))
+                .participantLimit(participantLimit)
+                .build();
+    }
 }

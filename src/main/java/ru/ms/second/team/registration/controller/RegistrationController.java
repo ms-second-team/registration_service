@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -178,7 +179,8 @@ public class RegistrationController {
             })
     })
     @PatchMapping("/{registrationId}/status")
-    public RegistrationStatus updateRegistrationStatus(@Parameter(description = "Registration id")
+    public RegistrationStatus updateRegistrationStatus(@RequestHeader("X-User-Id") Long userId,
+                                                       @Parameter(description = "Registration id")
                                                        @PathVariable Long registrationId,
                                                        @Parameter(description = "New registration status")
                                                        @RequestParam RegistrationStatus newStatus,
@@ -186,7 +188,7 @@ public class RegistrationController {
                                                        @RequestBody @Valid RegistrationCredentials registrationCredentials) {
         validateStatus(newStatus);
         log.debug("Updating status for registration with id '{}'", registrationId);
-        return registrationService.updateRegistrationStatus(registrationId, newStatus, registrationCredentials);
+        return registrationService.updateRegistrationStatus(userId, registrationId, newStatus, registrationCredentials);
     }
 
     @Operation(summary = "Decline registration")
@@ -208,7 +210,8 @@ public class RegistrationController {
             })
     })
     @PatchMapping("/{registrationId}/status/decline")
-    public RegistrationStatus declineRegistration(@Parameter(description = "Registration id")
+    public RegistrationStatus declineRegistration(@RequestHeader("X-User-Id") Long userId,
+                                                  @Parameter(description = "Registration id")
                                                   @PathVariable Long registrationId,
                                                   @Parameter(description = "Decline reason")
                                                   @RequestParam
@@ -216,7 +219,7 @@ public class RegistrationController {
                                                   @Parameter(description = "Registration credentials")
                                                   @RequestBody @Valid RegistrationCredentials registrationCredentials) {
         log.debug("Updating status for registration with id '{}'", registrationId);
-        return registrationService.declineRegistration(registrationId, reason, registrationCredentials);
+        return registrationService.declineRegistration(userId, registrationId, reason, registrationCredentials);
     }
 
     @Operation(summary = "Search registrations")
