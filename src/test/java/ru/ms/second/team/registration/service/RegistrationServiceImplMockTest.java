@@ -17,6 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import ru.ms.second.team.registration.client.EventClient;
 import ru.ms.second.team.registration.dto.event.EventDto;
+import ru.ms.second.team.registration.dto.event.TeamMemberDto;
+import ru.ms.second.team.registration.dto.event.TeamMemberRole;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
 import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
 import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
@@ -24,6 +26,7 @@ import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDt
 import ru.ms.second.team.registration.dto.response.RegistrationCount;
 import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
 import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
 import ru.ms.second.team.registration.mapper.RegistrationMapper;
@@ -35,6 +38,7 @@ import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.impl.RegistrationServiceImpl;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -92,12 +96,14 @@ public class RegistrationServiceImplMockTest {
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto(registration.getId());
         Registration registrationFromMapper = createRegistration(
                 0L, "user1", "mail@mail.com", "78005553535");
+        EventDto event = createEvent(2L, 10);
 
         when(mapper.toModel(any(NewRegistrationDto.class))).thenReturn(registrationFromMapper);
         when(mapper.toCreatedDto(any(Registration.class))).thenReturn(createdRegistrationResponseDto);
         when(registrationRepository.save(any(Registration.class))).thenReturn(registration);
-
-        CreatedRegistrationResponseDto result = registrationService.create(newRegistrationDto);
+        when(eventClient.getEventById(1L, newRegistrationDto.eventId()))
+                .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
+        CreatedRegistrationResponseDto result = registrationService.create(newRegistrationDto, 1L);
 
         assertEquals(result.id(), createdRegistrationResponseDto.id(), "id's must be same");
         assertEquals(result.password(), registration.getPassword(), "passwords must be same");
@@ -358,18 +364,21 @@ public class RegistrationServiceImplMockTest {
     }
 
     @Test
-    @DisplayName("Update registration status to WAITING")
-    void updateRegistrationStatus_whenRegistrationFoundAndStatusWaiting_ShouldUpdateStatus() {
+    @DisplayName("Update registration status to WAITING by event owner")
+    void updateRegistrationStatusByEventOwner_whenRegistrationFoundAndStatusWaiting_ShouldUpdateStatus() {
         RegistrationStatus status = WAITING;
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
+        EventDto event = createEvent(userId, 10);
         registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
         when(registrationRepository.save(any()))
                 .thenReturn(registration);
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
 
         RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status,
                 registrationCredentials);
@@ -383,6 +392,171 @@ public class RegistrationServiceImplMockTest {
 
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).save(registrationToSave);
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Update registration status to WAITING by manager")
+    void updateRegistrationStatusByTeamManager_whenOneTeamMemberFound_ShouldUpdateStatus() {
+        RegistrationStatus status = WAITING;
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
+        EventDto event = createEvent((userId + 1), 10);
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration);
+        when(eventClient.getEventById((userId), registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(List.of(teamMemberDto), HttpStatus.OK));
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status,
+                registrationCredentials);
+
+        assertEquals(status, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(status, registrationToSave.getStatus());
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Update registration status to WAITING by manager, when two team members found")
+    void updateRegistrationStatusByTeamManager_whenTwoTeamMemberFound_ShouldUpdateStatus() {
+        RegistrationStatus status = WAITING;
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        TeamMemberDto teamMemberDto1 = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
+        TeamMemberDto teamMemberDto2 =
+                createTeamMember(userId + 2L, registration.getEventId(), TeamMemberRole.MEMBER);
+        EventDto event = createEvent((userId + 1), 10);
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration);
+        when(eventClient.getEventById((userId), registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(List.of(teamMemberDto1, teamMemberDto2), HttpStatus.OK));
+
+        RegistrationStatus result = registrationService.updateRegistrationStatus(userId, registration.getId(), status,
+                registrationCredentials);
+
+        assertEquals(status, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(status, registrationToSave.getStatus());
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Update registration status to WAITING when one team member found and is not authorized")
+    void updateRegistrationStatusByTeamMember_whenOneTeamMemberFound_ShouldThrowNotAuthorized() {
+        RegistrationStatus status = WAITING;
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
+        EventDto event = createEvent((userId + 1), 10);
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(eventClient.getEventById((userId), registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(List.of(teamMemberDto), HttpStatus.OK));
+
+        NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
+                () -> registrationService.updateRegistrationStatus(
+                        userId, registration.getId(), status, registrationCredentials)
+        );
+
+        assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
+                userId, registration.getEventId()), ex.getMessage());
+
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Update registration status Fail when user is not event's team member")
+    void updateRegistrationStatus_whenUserIsNotTeamMemberOrOwner_ShouldThrowNotAuthorized() {
+        RegistrationStatus status = WAITING;
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        EventDto event = createEvent((userId + 1), 10);
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(eventClient.getEventById((userId), registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(new ArrayList<>(), HttpStatus.OK));
+
+        NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
+                () -> registrationService.updateRegistrationStatus(
+                        userId, registration.getId(), status, registrationCredentials)
+        );
+
+        assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
+                userId, registration.getEventId()), ex.getMessage());
+
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Update registration status to WAITING when two team members found and the user us not authorized")
+    void updateRegistrationStatusByTeamMember_whenTwoTeamMembersFound_ShouldThrowNotAuthorized() {
+        RegistrationStatus status = WAITING;
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
+        TeamMemberDto teamMemberDto2 = createTeamMember(userId + 2, registration.getEventId(), TeamMemberRole.MANAGER);
+        EventDto event = createEvent((userId + 1), 10);
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(eventClient.getEventById((userId), registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(List.of(teamMemberDto, teamMemberDto2), HttpStatus.OK));
+
+        NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
+                () -> registrationService.updateRegistrationStatus(
+                        userId, registration.getId(), status, registrationCredentials)
+        );
+
+        assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
+                userId, registration.getEventId()), ex.getMessage());
+
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
     }
 
     @Test
@@ -612,11 +786,12 @@ public class RegistrationServiceImplMockTest {
     }
 
     @Test
-    @DisplayName("Decline registration")
-    void declineRegistration_whenRegistrationFound_ShouldDecline() {
+    @DisplayName("Decline registration by event owner")
+    void declineRegistrationByEventOwner_whenRegistrationFound_ShouldDecline() {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
+        EventDto eventDto = createEvent(userId, 10);
         RegistrationStatus status = DECLINED;
         String reason = "reason";
         registrationCredentials = createRegistrationCredentials("1234");
@@ -625,6 +800,8 @@ public class RegistrationServiceImplMockTest {
                 .thenReturn(Optional.of(registration));
         when(registrationRepository.save(any()))
                 .thenReturn(registration);
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
         when(declinedRegistrationRepository.save(any()))
                 .thenReturn(any());
 
@@ -646,6 +823,242 @@ public class RegistrationServiceImplMockTest {
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).save(registrationToSave);
         verify(declinedRegistrationRepository, times(1)).save(declinedRegistrationToSave);
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Decline registration by team manager when one team member found")
+    void declineRegistrationByTeamManager_whenOneTeamMemberFoundAndRegistrationFound_ShouldDecline() {
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        EventDto eventDto = createEvent(userId + 1, 10);
+        RegistrationStatus status = DECLINED;
+        TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
+        String reason = "reason";
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration);
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(List.of(teamMemberDto), HttpStatus.OK));
+        when(declinedRegistrationRepository.save(any()))
+                .thenReturn(any());
+
+
+        RegistrationStatus result = registrationService.declineRegistration(userId, registration.getId(), reason, registrationCredentials);
+
+        assertEquals(status, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(status, registrationToSave.getStatus());
+
+        verify(declinedRegistrationRepository).save(declinedRegistrationCaptor.capture());
+        DeclinedRegistration declinedRegistrationToSave = declinedRegistrationCaptor.getValue();
+
+        assertEquals(registration.getId(), declinedRegistrationToSave.getRegistration().getId());
+        assertEquals(reason, declinedRegistrationToSave.getReason());
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+        verify(declinedRegistrationRepository, times(1)).save(declinedRegistrationToSave);
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Decline registration by team manager when two team members found")
+    void declineRegistrationByTeamManager_whenTwoTeamMembersFoundAndRegistrationFound_ShouldDecline() {
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        EventDto eventDto = createEvent(userId + 1, 10);
+        RegistrationStatus status = DECLINED;
+        TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
+        TeamMemberDto teamMemberDto1 =
+                createTeamMember(userId + 2L, registration.getEventId(), TeamMemberRole.MEMBER);
+        String reason = "reason";
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration);
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(List.of(teamMemberDto, teamMemberDto1), HttpStatus.OK));
+        when(declinedRegistrationRepository.save(any()))
+                .thenReturn(any());
+
+
+        RegistrationStatus result = registrationService.declineRegistration(userId, registration.getId(), reason, registrationCredentials);
+
+        assertEquals(status, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(status, registrationToSave.getStatus());
+
+        verify(declinedRegistrationRepository).save(declinedRegistrationCaptor.capture());
+        DeclinedRegistration declinedRegistrationToSave = declinedRegistrationCaptor.getValue();
+
+        assertEquals(registration.getId(), declinedRegistrationToSave.getRegistration().getId());
+        assertEquals(reason, declinedRegistrationToSave.getReason());
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+        verify(declinedRegistrationRepository, times(1)).save(declinedRegistrationToSave);
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Decline registration by team manager when two team members found and they are both managers")
+    void declineRegistrationByTeamManager_whenTwoTeamMembersFoundAndBothManagers_ShouldDecline() {
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        EventDto eventDto = createEvent(userId + 1, 10);
+        RegistrationStatus status = DECLINED;
+        TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
+        TeamMemberDto teamMemberDto1 =
+                createTeamMember(userId + 2L, registration.getEventId(), TeamMemberRole.MANAGER);
+        String reason = "reason";
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(registrationRepository.save(any()))
+                .thenReturn(registration);
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(List.of(teamMemberDto, teamMemberDto1), HttpStatus.OK));
+        when(declinedRegistrationRepository.save(any()))
+                .thenReturn(any());
+
+
+        RegistrationStatus result = registrationService.declineRegistration(userId, registration.getId(), reason, registrationCredentials);
+
+        assertEquals(status, result);
+
+        verify(registrationRepository).save(captor.capture());
+        Registration registrationToSave = captor.getValue();
+
+        assertEquals(status, registrationToSave.getStatus());
+
+        verify(declinedRegistrationRepository).save(declinedRegistrationCaptor.capture());
+        DeclinedRegistration declinedRegistrationToSave = declinedRegistrationCaptor.getValue();
+
+        assertEquals(registration.getId(), declinedRegistrationToSave.getRegistration().getId());
+        assertEquals(reason, declinedRegistrationToSave.getReason());
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registrationToSave);
+        verify(declinedRegistrationRepository, times(1)).save(declinedRegistrationToSave);
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Decline registration when one team member found and is not authorized")
+    void declineRegistrationByTeamMember_whenOneTeamMembersFound_ShouldThrowNotAuthorized() {
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        EventDto eventDto = createEvent(userId + 1, 10);
+        RegistrationStatus status = DECLINED;
+        TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
+        String reason = "reason";
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(List.of(teamMemberDto), HttpStatus.OK));
+
+        NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
+                () -> registrationService.declineRegistration(
+                        userId, registration.getId(), reason, registrationCredentials)
+        );
+
+        assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
+                userId, registration.getEventId()), ex.getMessage());
+
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Decline registration when two team members found and the user is not authorized")
+    void declineRegistrationByTeamMember_whenTwoTeamMembersFound_ShouldThrowNotAuthorized() {
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        EventDto eventDto = createEvent(userId + 1, 10);
+        TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
+        TeamMemberDto teamMemberDto1 = createTeamMember(
+                userId + 2L, registration.getEventId(), TeamMemberRole.MANAGER
+        );
+        String reason = "reason";
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(List.of(teamMemberDto, teamMemberDto1), HttpStatus.OK));
+
+        NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
+                () -> registrationService.declineRegistration(
+                        userId, registration.getId(), reason, registrationCredentials)
+        );
+
+        assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
+                userId, registration.getEventId()), ex.getMessage());
+
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("Decline registration fail when the user is not event's team member")
+    void declineRegistration_whenUserIsNotTeamMember_ShouldThrowNotAuthorized() {
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        EventDto eventDto = createEvent(userId + 1, 10);
+        String reason = "reason";
+        registrationCredentials = createRegistrationCredentials("1234");
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
+        when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
+                .thenReturn(new ResponseEntity<>(new ArrayList<>(), HttpStatus.OK));
+
+        NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
+                () -> registrationService.declineRegistration(
+                        userId, registration.getId(), reason, registrationCredentials)
+        );
+
+        assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
+                userId, registration.getEventId()), ex.getMessage());
+
+        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
     }
 
     @Test
@@ -812,6 +1225,14 @@ public class RegistrationServiceImplMockTest {
                 .startDateTime(LocalDateTime.now().plusDays(ownerId))
                 .endDateTime(LocalDateTime.now().plusMonths(ownerId))
                 .participantLimit(participantLimit)
+                .build();
+    }
+
+    private TeamMemberDto createTeamMember(Long userId, Long eventId, TeamMemberRole role) {
+        return TeamMemberDto.builder()
+                .eventId(eventId)
+                .userId(userId)
+                .role(role)
                 .build();
     }
 }
