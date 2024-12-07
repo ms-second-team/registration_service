@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ms.second.team.registration.client.EventClient;
 import ru.ms.second.team.registration.dto.event.EventDto;
+import ru.ms.second.team.registration.dto.event.TeamMemberDto;
+import ru.ms.second.team.registration.dto.event.TeamMemberRole;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
 import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
 import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
@@ -15,6 +17,7 @@ import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDt
 import ru.ms.second.team.registration.dto.response.RegistrationCount;
 import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
 import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
 import ru.ms.second.team.registration.mapper.RegistrationMapper;
@@ -28,6 +31,8 @@ import ru.ms.second.team.registration.service.RegistrationService;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static ru.ms.second.team.registration.model.RegistrationStatus.APPROVED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.DECLINED;
@@ -45,10 +50,11 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final EventClient eventClient;
 
     @Override
-    public CreatedRegistrationResponseDto create(NewRegistrationDto creationDto) {
+    public CreatedRegistrationResponseDto create(NewRegistrationDto creationDto, Long userId) {
         log.info("RegistrationService: executing create method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
 
+        checkIfEventExists(userId, creationDto.eventId());
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(generatePassword());
         registration = registrationRepository.save(registration);
@@ -103,6 +109,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                                                        RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
+        checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId());
         registration.setStatus(newStatus);
         if (newStatus.equals(APPROVED)) {
             checkEventParticipationLimit(userId, registration, newStatus);
@@ -117,6 +124,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                                                   RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
+        checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId());
         registration.setStatus(DECLINED);
         final Registration updatedRegistration = registrationRepository.save(registration);
         saveDeclineReason(reason, updatedRegistration);
@@ -197,6 +205,24 @@ public class RegistrationServiceImpl implements RegistrationService {
                     .forEach(reg -> reg.setStatus(WAITING));
             registrationRepository.saveAll(approvedRegistrations);
             registration.setStatus(WAITING);
+        }
+    }
+
+    private void checkIfEventExists(Long userId, Long eventId) {
+        eventClient.getEventById(userId, eventId).getBody();
+    }
+
+    private void checkIfUserIsOwnerOrManagerOfEvent(Long userId, Long eventId) {
+        final EventDto event = eventClient.getEventById(userId, eventId).getBody();
+        if (event.ownerId().equals(userId)) return;
+
+        Set<Long> managerIds = eventClient.getTeamsByEventId(userId, eventId).getBody().stream()
+                .filter(t -> t.role().equals(TeamMemberRole.MANAGER))
+                .map(TeamMemberDto::userId)
+                .collect(Collectors.toSet());
+        if (!managerIds.contains(userId)) {
+            throw new NotAuthorizedException(String.format(
+                    "User id=%d has no rights to change registration status for event id=%d", userId, eventId));
         }
     }
 }

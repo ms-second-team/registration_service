@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
 import ru.ms.second.team.registration.exception.model.ErrorResponse;
@@ -65,6 +66,13 @@ public class ErrorHandler {
         return new ErrorResponse(HttpStatus.BAD_REQUEST.getReasonPhrase(), e.getLocalizedMessage());
     }
 
+    @ExceptionHandler(NotAuthorizedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleNotAuthorizedException(NotAuthorizedException e) {
+        log.error("{}, {}", HttpStatus.FORBIDDEN, e.getLocalizedMessage());
+        return new ErrorResponse(
+                HttpStatus.FORBIDDEN.getReasonPhrase(), "Unknown status: " + e.getLocalizedMessage());
+    }
     @ExceptionHandler
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleMethodArgumentNotValidException(final Exception e) {
