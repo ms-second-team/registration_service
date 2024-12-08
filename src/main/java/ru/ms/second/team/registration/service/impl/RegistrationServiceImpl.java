@@ -227,8 +227,6 @@ public class RegistrationServiceImpl implements RegistrationService {
         if (event.ownerId().equals(userId)) return true;
         List<TeamMemberDto> teamMemberDtoList = eventClient.getTeamsByEventId(userId, eventId).getBody();
         return teamMemberDtoList.stream()
-                .filter(t -> t.role().equals(TeamMemberRole.MANAGER))
-                .map(TeamMemberDto::userId)
-                .anyMatch(id -> id.equals(userId));
+                .anyMatch(tm -> tm.userId().equals(userId) && tm.role().equals(TeamMemberRole.MANAGER));
     }
 }
