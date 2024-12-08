@@ -31,8 +31,6 @@ import ru.ms.second.team.registration.service.RegistrationService;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static ru.ms.second.team.registration.model.RegistrationStatus.APPROVED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.DECLINED;
@@ -110,7 +108,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
 
-        if (checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId()) == false) {
+        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId())) {
             throw new NotAuthorizedException(String.format(
                     "User id=%d has no rights to change registration status for event id=%d",
                     userId, registration.getEventId()));
@@ -131,7 +129,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
 
-        if (checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId()) == false) {
+        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId())) {
             throw new NotAuthorizedException(String.format(
                     "User id=%d has no rights to change registration status for event id=%d",
                     userId, registration.getEventId()));
@@ -227,11 +225,10 @@ public class RegistrationServiceImpl implements RegistrationService {
     private boolean checkIfUserIsOwnerOrManagerOfEvent(Long userId, Long eventId) {
         final EventDto event = findEventOrThrow(userId, eventId);
         if (event.ownerId().equals(userId)) return true;
-
-        Set<Long> managerIds = eventClient.getTeamsByEventId(userId, eventId).getBody().stream()
+        List<TeamMemberDto> teamMemberDtoList = eventClient.getTeamsByEventId(userId, eventId).getBody();
+        return teamMemberDtoList.stream()
                 .filter(t -> t.role().equals(TeamMemberRole.MANAGER))
                 .map(TeamMemberDto::userId)
-                .collect(Collectors.toSet());
-        return managerIds.contains(userId);
+                .anyMatch(id -> id.equals(userId));
     }
 }
