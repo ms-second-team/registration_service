@@ -5,7 +5,7 @@ import jakarta.validation.constraints.*;
 import lombok.Builder;
 
 @Builder
-@Schema(description = "Registration update data")
+@Schema(description = "Registration updateRegistration data")
 public record UpdateRegistrationDto(
 
         @Positive

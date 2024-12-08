@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ms.second.team.registration.client.EventClient;
 import ru.ms.second.team.registration.dto.event.EventDto;
+import ru.ms.second.team.registration.dto.event.TeamMemberDto;
+import ru.ms.second.team.registration.dto.event.TeamMemberRole;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
 import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
 import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
@@ -15,6 +17,7 @@ import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDt
 import ru.ms.second.team.registration.dto.response.RegistrationCount;
 import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
 import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
 import ru.ms.second.team.registration.mapper.RegistrationMapper;
@@ -45,10 +48,11 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final EventClient eventClient;
 
     @Override
-    public CreatedRegistrationResponseDto create(NewRegistrationDto creationDto) {
-        log.info("RegistrationService: executing create method. Username {}, email {}, phone {}, eventId {}",
+    public CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto, Long userId) {
+        log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
 
+        findEventOrThrow(userId, creationDto.eventId());
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(generatePassword());
         registration = registrationRepository.save(registration);
@@ -57,8 +61,8 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
-    public UpdatedRegistrationResponseDto update(UpdateRegistrationDto updateDto) {
-        log.info("RegistrationService: executing update method. Updating registration with id {}, updateDto {}",
+    public UpdatedRegistrationResponseDto updateRegistration(UpdateRegistrationDto updateDto) {
+        log.info("RegistrationService: executing updateRegistration method. Updating registration with id {}, updateDto {}",
                 updateDto.id(), updateDto);
 
         Registration registration = findRegistrationOrThrow(updateDto.id());
@@ -69,15 +73,15 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
-    public RegistrationResponseDto findById(Long id) {
-        log.debug("RegistrationService: executing findById method. Id={}", id);
+    public RegistrationResponseDto findRegistrationById(Long id) {
+        log.debug("RegistrationService: executing findRegistrationById method. Id={}", id);
         Registration registration = findRegistrationOrThrow(id);
         return registrationMapper.toRegistrationDto(registration);
     }
 
     @Override
-    public List<RegistrationResponseDto> findAllByEventId(int page, int size, Long eventId) {
-        log.debug("RegistrationService: executing findAllByEventId method. Page={}, size={}, eventId={}",
+    public List<RegistrationResponseDto> findAllRegistrationsByEventId(int page, int size, Long eventId) {
+        log.debug("RegistrationService: executing findAllRegistrationsByEventId method. Page={}, size={}, eventId={}",
                 page, size, eventId);
 
         Page<Registration> registrations = registrationRepository.findAllByEventId(eventId, PageRequest.of(page, size));
@@ -87,8 +91,8 @@ public class RegistrationServiceImpl implements RegistrationService {
 
     @Override
     @Transactional
-    public void delete(RegistrationCredentials registrationCredentials) {
-        log.info("RegistrationService: executing delete method. Deleting registration id={}",
+    public void deleteRegistration(RegistrationCredentials registrationCredentials) {
+        log.info("RegistrationService: executing deleteRegistration method. Deleting registration id={}",
                 registrationCredentials.id());
         Registration registration = findRegistrationOrThrow(registrationCredentials.id());
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
@@ -103,6 +107,13 @@ public class RegistrationServiceImpl implements RegistrationService {
                                                        RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
+
+        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId())) {
+            throw new NotAuthorizedException(String.format(
+                    "User id=%d has no rights to change registration status for event id=%d",
+                    userId, registration.getEventId()));
+        }
+
         registration.setStatus(newStatus);
         if (newStatus.equals(APPROVED)) {
             checkEventParticipationLimit(userId, registration, newStatus);
@@ -117,6 +128,13 @@ public class RegistrationServiceImpl implements RegistrationService {
                                                   RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
+
+        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId())) {
+            throw new NotAuthorizedException(String.format(
+                    "User id=%d has no rights to change registration status for event id=%d",
+                    userId, registration.getEventId()));
+        }
+
         registration.setStatus(DECLINED);
         final Registration updatedRegistration = registrationRepository.save(registration);
         saveDeclineReason(reason, updatedRegistration);
@@ -198,5 +216,17 @@ public class RegistrationServiceImpl implements RegistrationService {
             registrationRepository.saveAll(approvedRegistrations);
             registration.setStatus(WAITING);
         }
+    }
+
+    private EventDto findEventOrThrow(Long userId, Long eventId) {
+        return eventClient.getEventById(userId, eventId).getBody();
+    }
+
+    private boolean checkIfUserIsOwnerOrManagerOfEvent(Long userId, Long eventId) {
+        final EventDto event = findEventOrThrow(userId, eventId);
+        if (event.ownerId().equals(userId)) return true;
+        List<TeamMemberDto> teamMemberDtoList = eventClient.getTeamsByEventId(userId, eventId).getBody();
+        return teamMemberDtoList.stream()
+                .anyMatch(tm -> tm.userId().equals(userId) && tm.role().equals(TeamMemberRole.MANAGER));
     }
 }
