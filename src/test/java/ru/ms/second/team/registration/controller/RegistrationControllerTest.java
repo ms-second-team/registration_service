@@ -70,7 +70,7 @@ public class RegistrationControllerTest {
         newRegistrationDto =
                 createNewRegistrationDto("user1", "email@mail.com", "78005553535", 1L);
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
-        when(registrationService.create(any(NewRegistrationDto.class), anyLong()))
+        when(registrationService.createRegistration(newRegistrationDto, userId))
                 .thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
@@ -81,7 +81,7 @@ public class RegistrationControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.password", is(createdRegistrationResponseDto.password())));
-        verify(registrationService, times(1)).create(any(NewRegistrationDto.class), anyLong());
+        verify(registrationService, times(1)).createRegistration(newRegistrationDto, userId);
     }
 
     @Test
@@ -97,7 +97,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).create(any(), anyLong());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
     }
 
     @Test
@@ -113,7 +113,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).create(any(), anyLong());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
     }
 
     @Test
@@ -129,7 +129,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).create(any(), anyLong());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
     }
 
     @Test
@@ -145,7 +145,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).create(any(), anyLong());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
     }
 
     @Test
@@ -159,8 +159,8 @@ public class RegistrationControllerTest {
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isInternalServerError());
-        verify(registrationService, never()).create(any(), anyLong());
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
     }
 
     @Test
@@ -176,7 +176,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).create(any(), anyLong());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
     }
 
     @Test
@@ -187,7 +187,7 @@ public class RegistrationControllerTest {
                 createUpdateRegistrationDto("user2", null, null, 1L, "1234");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user2", "email@mail.com");
-        when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -197,7 +197,7 @@ public class RegistrationControllerTest {
                 .andExpect(jsonPath("$.username", is(updateRegistrationDto.username())))
                 .andExpect(jsonPath("$.email", is(updatedRegistrationResponseDto.email())))
                 .andExpect(jsonPath("$.phone", is(updatedRegistrationResponseDto.phone())));
-        verify(registrationService, times(1)).update(updateRegistrationDto);
+        verify(registrationService, times(1)).updateRegistration(updateRegistrationDto);
     }
 
     @Test
@@ -208,7 +208,7 @@ public class RegistrationControllerTest {
                 createUpdateRegistrationDto(null, "mail@mail.com", null, 1L, "1234");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "mail@mail.com");
-        when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -218,7 +218,7 @@ public class RegistrationControllerTest {
                 .andExpect(jsonPath("$.username", is(updatedRegistrationResponseDto.username())))
                 .andExpect(jsonPath("$.email", is(updateRegistrationDto.email())))
                 .andExpect(jsonPath("$.phone", is(updatedRegistrationResponseDto.phone())));
-        verify(registrationService, times(1)).update(updateRegistrationDto);
+        verify(registrationService, times(1)).updateRegistration(updateRegistrationDto);
     }
 
     @Test
@@ -229,7 +229,7 @@ public class RegistrationControllerTest {
                 createUpdateRegistrationDto(null, null, "78005553535", 1L, "1234");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "email@mail.com");
-        when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -239,7 +239,7 @@ public class RegistrationControllerTest {
                 .andExpect(jsonPath("$.username", is(updatedRegistrationResponseDto.username())))
                 .andExpect(jsonPath("$.email", is(updatedRegistrationResponseDto.email())))
                 .andExpect(jsonPath("$.phone", is(updateRegistrationDto.phone())));
-        verify(registrationService, times(1)).update(updateRegistrationDto);
+        verify(registrationService, times(1)).updateRegistration(updateRegistrationDto);
     }
 
     @Test
@@ -250,7 +250,7 @@ public class RegistrationControllerTest {
                 createUpdateRegistrationDto("user1", "email@mail.com", null, 1L, "1234");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "email@mail.com");
-        when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -260,7 +260,7 @@ public class RegistrationControllerTest {
                 .andExpect(jsonPath("$.username", is(updateRegistrationDto.username())))
                 .andExpect(jsonPath("$.email", is(updateRegistrationDto.email())))
                 .andExpect(jsonPath("$.phone", is(updatedRegistrationResponseDto.phone())));
-        verify(registrationService, times(1)).update(updateRegistrationDto);
+        verify(registrationService, times(1)).updateRegistration(updateRegistrationDto);
     }
 
     @Test
@@ -271,7 +271,7 @@ public class RegistrationControllerTest {
                 createUpdateRegistrationDto("user1", null, "78005553535", 1L, "1234");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "email@mail.com");
-        when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -281,7 +281,7 @@ public class RegistrationControllerTest {
                 .andExpect(jsonPath("$.username", is(updateRegistrationDto.username())))
                 .andExpect(jsonPath("$.email", is(updatedRegistrationResponseDto.email())))
                 .andExpect(jsonPath("$.phone", is(updateRegistrationDto.phone())));
-        verify(registrationService, times(1)).update(updateRegistrationDto);
+        verify(registrationService, times(1)).updateRegistration(updateRegistrationDto);
     }
 
     @Test
@@ -292,7 +292,7 @@ public class RegistrationControllerTest {
                 null, "email@mail.com", "78005553535", 1L, "1234");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "email@mail.com");
-        when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -302,7 +302,7 @@ public class RegistrationControllerTest {
                 .andExpect(jsonPath("$.username", is(updatedRegistrationResponseDto.username())))
                 .andExpect(jsonPath("$.email", is(updateRegistrationDto.email())))
                 .andExpect(jsonPath("$.phone", is(updateRegistrationDto.phone())));
-        verify(registrationService, times(1)).update(updateRegistrationDto);
+        verify(registrationService, times(1)).updateRegistration(updateRegistrationDto);
     }
 
     @Test
@@ -313,7 +313,7 @@ public class RegistrationControllerTest {
                 "user1", "email@mail.com", "78005553535", 1L, "1234");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "email@mail.com");
-        when(registrationService.update(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -323,7 +323,7 @@ public class RegistrationControllerTest {
                 .andExpect(jsonPath("$.username", is(updateRegistrationDto.username())))
                 .andExpect(jsonPath("$.email", is(updateRegistrationDto.email())))
                 .andExpect(jsonPath("$.phone", is(updateRegistrationDto.phone())));
-        verify(registrationService, times(1)).update(updateRegistrationDto);
+        verify(registrationService, times(1)).updateRegistration(updateRegistrationDto);
     }
 
     @Test
@@ -338,7 +338,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).update(updateRegistrationDto);
+        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
     }
 
     @Test
@@ -353,7 +353,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).update(updateRegistrationDto);
+        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
     }
 
     @Test
@@ -368,7 +368,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).update(updateRegistrationDto);
+        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
     }
 
     @Test
@@ -383,7 +383,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).update(any());
+        verify(registrationService, never()).updateRegistration(any());
     }
 
     @Test
@@ -398,7 +398,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).update(any());
+        verify(registrationService, never()).updateRegistration(any());
     }
 
     @Test
@@ -413,7 +413,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).update(any());
+        verify(registrationService, never()).updateRegistration(any());
     }
 
     @Test
@@ -422,8 +422,8 @@ public class RegistrationControllerTest {
     void getRegistrationById() {
         registrationResponseDto =
                 createResponseDto();
-        when(registrationService.findById(any())).thenReturn(registrationResponseDto);
-        mvc.perform(get("/registrations/1")
+        when(registrationService.findRegistrationById(registrationResponseDto.eventId())).thenReturn(registrationResponseDto);
+        mvc.perform(get("/registrations/" + registrationResponseDto.eventId())
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
@@ -432,7 +432,7 @@ public class RegistrationControllerTest {
                 .andExpect(jsonPath("$.email", is(registrationResponseDto.email())))
                 .andExpect(jsonPath("$.eventId", is(1)))
                 .andExpect(jsonPath("$.phone", is(registrationResponseDto.phone())));
-        verify(registrationService, times(1)).findById(registrationResponseDto.eventId());
+        verify(registrationService, times(1)).findRegistrationById(registrationResponseDto.eventId());
     }
 
     @Test
@@ -444,7 +444,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).findById(any());
+        verify(registrationService, never()).findRegistrationById(any());
     }
 
 
@@ -454,8 +454,9 @@ public class RegistrationControllerTest {
     void getRegistrationsForEvent() {
         registrationResponseDto =
                 createResponseDto();
-        when(registrationService.findAllByEventId(anyInt(), anyInt(), anyLong())).thenReturn(List.of(registrationResponseDto));
-        mvc.perform(get("/registrations?eventId=1")
+        when(registrationService.findAllRegistrationsByEventId(0, 10, registrationResponseDto.eventId()))
+                .thenReturn(List.of(registrationResponseDto));
+        mvc.perform(get("/registrations?eventId=" + registrationResponseDto.eventId())
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
@@ -464,7 +465,8 @@ public class RegistrationControllerTest {
                 .andExpect(jsonPath("$[0].email", is(registrationResponseDto.email())))
                 .andExpect(jsonPath("$[0].eventId", is(1)))
                 .andExpect(jsonPath("$[0].phone", is(registrationResponseDto.phone())));
-        verify(registrationService, times(1)).findAllByEventId(anyInt(), anyInt(), anyLong());
+        verify(registrationService, times(1))
+                .findAllRegistrationsByEventId(0, 10, registrationResponseDto.eventId());
     }
 
     @Test
@@ -476,7 +478,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).findAllByEventId(anyInt(), anyInt(), anyLong());
+        verify(registrationService, never()).findAllRegistrationsByEventId(anyInt(), anyInt(), anyLong());
     }
 
     @Test
@@ -488,7 +490,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).findAllByEventId(anyInt(), anyInt(), anyLong());
+        verify(registrationService, never()).findAllRegistrationsByEventId(anyInt(), anyInt(), anyLong());
     }
 
     @Test
@@ -500,7 +502,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).findAllByEventId(anyInt(), anyInt(), anyLong());
+        verify(registrationService, never()).findAllRegistrationsByEventId(anyInt(), anyInt(), anyLong());
     }
 
     @Test
@@ -514,12 +516,12 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNoContent());
-        verify(registrationService, times(1)).delete(registrationCredentials);
+        verify(registrationService, times(1)).deleteRegistration(registrationCredentials);
     }
 
     @Test
     @SneakyThrows
-    @DisplayName("Registration failed to delete due to non positive id")
+    @DisplayName("Registration failed to deleteRegistration due to non positive id")
     void deleteRegistrationByIdNonPositiveId() {
         registrationCredentials = createRegistrationCredentials(0L, "1234");
         mvc.perform(delete("/registrations")
@@ -528,12 +530,12 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).delete(registrationCredentials);
+        verify(registrationService, never()).deleteRegistration(registrationCredentials);
     }
 
     @Test
     @SneakyThrows
-    @DisplayName("Registration failed to delete due to too short password")
+    @DisplayName("Registration failed to deleteRegistration due to too short password")
     void deleteRegistrationFailShortPassword() {
         registrationCredentials = createRegistrationCredentials(1L, "123");
         mvc.perform(delete("/registrations")
@@ -542,12 +544,12 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).delete(registrationCredentials);
+        verify(registrationService, never()).deleteRegistration(registrationCredentials);
     }
 
     @Test
     @SneakyThrows
-    @DisplayName("Registration failed to delete due to too long password")
+    @DisplayName("Registration failed to deleteRegistration due to too long password")
     void deleteRegistrationFailLongPassword() {
         registrationCredentials = createRegistrationCredentials(1L, "12345");
         mvc.perform(delete("/registrations")
@@ -556,7 +558,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).delete(registrationCredentials);
+        verify(registrationService, never()).deleteRegistration(registrationCredentials);
     }
 
     @Test

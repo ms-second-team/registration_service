@@ -50,11 +50,11 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final EventClient eventClient;
 
     @Override
-    public CreatedRegistrationResponseDto create(NewRegistrationDto creationDto, Long userId) {
-        log.info("RegistrationService: executing create method. Username {}, email {}, phone {}, eventId {}",
+    public CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto, Long userId) {
+        log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
 
-        checkIfEventExists(userId, creationDto.eventId());
+        findEventOrThrow(userId, creationDto.eventId());
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(generatePassword());
         registration = registrationRepository.save(registration);
@@ -63,8 +63,8 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
-    public UpdatedRegistrationResponseDto update(UpdateRegistrationDto updateDto) {
-        log.info("RegistrationService: executing update method. Updating registration with id {}, updateDto {}",
+    public UpdatedRegistrationResponseDto updateRegistration(UpdateRegistrationDto updateDto) {
+        log.info("RegistrationService: executing updateRegistration method. Updating registration with id {}, updateDto {}",
                 updateDto.id(), updateDto);
 
         Registration registration = findRegistrationOrThrow(updateDto.id());
@@ -75,15 +75,15 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
-    public RegistrationResponseDto findById(Long id) {
-        log.debug("RegistrationService: executing findById method. Id={}", id);
+    public RegistrationResponseDto findRegistrationById(Long id) {
+        log.debug("RegistrationService: executing findRegistrationById method. Id={}", id);
         Registration registration = findRegistrationOrThrow(id);
         return registrationMapper.toRegistrationDto(registration);
     }
 
     @Override
-    public List<RegistrationResponseDto> findAllByEventId(int page, int size, Long eventId) {
-        log.debug("RegistrationService: executing findAllByEventId method. Page={}, size={}, eventId={}",
+    public List<RegistrationResponseDto> findAllRegistrationsByEventId(int page, int size, Long eventId) {
+        log.debug("RegistrationService: executing findAllRegistrationsByEventId method. Page={}, size={}, eventId={}",
                 page, size, eventId);
 
         Page<Registration> registrations = registrationRepository.findAllByEventId(eventId, PageRequest.of(page, size));
@@ -93,8 +93,8 @@ public class RegistrationServiceImpl implements RegistrationService {
 
     @Override
     @Transactional
-    public void delete(RegistrationCredentials registrationCredentials) {
-        log.info("RegistrationService: executing delete method. Deleting registration id={}",
+    public void deleteRegistration(RegistrationCredentials registrationCredentials) {
+        log.info("RegistrationService: executing deleteRegistration method. Deleting registration id={}",
                 registrationCredentials.id());
         Registration registration = findRegistrationOrThrow(registrationCredentials.id());
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
@@ -109,7 +109,13 @@ public class RegistrationServiceImpl implements RegistrationService {
                                                        RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
-        checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId());
+
+        if (checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId()) == false) {
+            throw new NotAuthorizedException(String.format(
+                    "User id=%d has no rights to change registration status for event id=%d",
+                    userId, registration.getEventId()));
+        }
+
         registration.setStatus(newStatus);
         if (newStatus.equals(APPROVED)) {
             checkEventParticipationLimit(userId, registration, newStatus);
@@ -124,7 +130,13 @@ public class RegistrationServiceImpl implements RegistrationService {
                                                   RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
-        checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId());
+
+        if (checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId()) == false) {
+            throw new NotAuthorizedException(String.format(
+                    "User id=%d has no rights to change registration status for event id=%d",
+                    userId, registration.getEventId()));
+        }
+
         registration.setStatus(DECLINED);
         final Registration updatedRegistration = registrationRepository.save(registration);
         saveDeclineReason(reason, updatedRegistration);
@@ -208,21 +220,18 @@ public class RegistrationServiceImpl implements RegistrationService {
         }
     }
 
-    private void checkIfEventExists(Long userId, Long eventId) {
-        eventClient.getEventById(userId, eventId).getBody();
+    private EventDto findEventOrThrow(Long userId, Long eventId) {
+        return eventClient.getEventById(userId, eventId).getBody();
     }
 
-    private void checkIfUserIsOwnerOrManagerOfEvent(Long userId, Long eventId) {
-        final EventDto event = eventClient.getEventById(userId, eventId).getBody();
-        if (event.ownerId().equals(userId)) return;
+    private boolean checkIfUserIsOwnerOrManagerOfEvent(Long userId, Long eventId) {
+        final EventDto event = findEventOrThrow(userId, eventId);
+        if (event.ownerId().equals(userId)) return true;
 
         Set<Long> managerIds = eventClient.getTeamsByEventId(userId, eventId).getBody().stream()
                 .filter(t -> t.role().equals(TeamMemberRole.MANAGER))
                 .map(TeamMemberDto::userId)
                 .collect(Collectors.toSet());
-        if (!managerIds.contains(userId)) {
-            throw new NotAuthorizedException(String.format(
-                    "User id=%d has no rights to change registration status for event id=%d", userId, eventId));
-        }
+        return managerIds.contains(userId);
     }
 }

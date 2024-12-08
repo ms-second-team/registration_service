@@ -13,15 +13,15 @@ import java.util.List;
 
 public interface RegistrationService {
 
-    CreatedRegistrationResponseDto create(NewRegistrationDto creationDto, Long userId);
+    CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto, Long userId);
 
-    UpdatedRegistrationResponseDto update(UpdateRegistrationDto updateDto);
+    UpdatedRegistrationResponseDto updateRegistration(UpdateRegistrationDto updateDto);
 
-    RegistrationResponseDto findById(Long id);
+    RegistrationResponseDto findRegistrationById(Long id);
 
-    List<RegistrationResponseDto> findAllByEventId(int page, int size, Long id);
+    List<RegistrationResponseDto> findAllRegistrationsByEventId(int page, int size, Long id);
 
-    void delete(RegistrationCredentials deleteDto);
+    void deleteRegistration(RegistrationCredentials deleteDto);
 
     RegistrationStatus updateRegistrationStatus(Long userId, Long registrationId, RegistrationStatus newStatus,
                                                 RegistrationCredentials registrationCredentials);

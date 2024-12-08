@@ -89,7 +89,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto result = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(registrationDto, 1L);
 
         assertNotNull(result.id(), "id can't be null");
         assertEquals(4, result.password().length());
@@ -107,7 +107,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withStatus(HttpStatus.NOT_FOUND.value())));
 
         NotFoundException ex = assertThrows(NotFoundException.class,
-                () -> registrationService.create(registrationDto, userId));
+                () -> registrationService.createRegistration(registrationDto, userId));
 
         assertEquals("Event was not found", ex.getMessage());
     }
@@ -125,12 +125,12 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
 
         UpdateRegistrationDto updateUsername = createUpdateRegistrationDto(
                 "user2", null, null, registration.id(), registration.password());
 
-        UpdatedRegistrationResponseDto usernameUpdated = registrationService.update(updateUsername);
+        UpdatedRegistrationResponseDto usernameUpdated = registrationService.updateRegistration(updateUsername);
 
         assertEquals(updateUsername.username(), usernameUpdated.username(), "usernames must be th same");
         assertEquals(registrationDto.email(), usernameUpdated.email(), "emails must be the same");
@@ -151,12 +151,12 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
 
         UpdateRegistrationDto updateEmail = createUpdateRegistrationDto(
                 null, "mail@gmail.com", null, registration.id(), registration.password());
 
-        UpdatedRegistrationResponseDto emailUpdated = registrationService.update(updateEmail);
+        UpdatedRegistrationResponseDto emailUpdated = registrationService.updateRegistration(updateEmail);
 
         assertEquals(registrationDto.username(), emailUpdated.username(), "usernames must be the same");
         assertEquals(updateEmail.email(), emailUpdated.email(), "emails must be the same");
@@ -177,12 +177,12 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
 
         UpdateRegistrationDto updatePhone = createUpdateRegistrationDto(
                 null, null, "78887776655", registration.id(), registration.password());
 
-        UpdatedRegistrationResponseDto phoneUpdated = registrationService.update(updatePhone);
+        UpdatedRegistrationResponseDto phoneUpdated = registrationService.updateRegistration(updatePhone);
 
         assertEquals(registrationDto.username(), phoneUpdated.username(), "usernames must be the same");
         assertEquals(registrationDto.email(), phoneUpdated.email(), "emails must be the same");
@@ -203,12 +203,12 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
 
         UpdateRegistrationDto failPasswordUpdate = createUpdateRegistrationDto(
                 "this gonna fail", null, null, registration.id(), "fake");
 
-        assertThrows(PasswordIncorrectException.class, () -> registrationService.update(failPasswordUpdate));
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.updateRegistration(failPasswordUpdate));
     }
 
     @Test
@@ -224,12 +224,12 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
 
         UpdateRegistrationDto notFoundObject = createUpdateRegistrationDto(
                 "this gonna fail", null, null, registration.id() + 1, registration.password());
 
-        assertThrows(NotFoundException.class, () -> registrationService.update(notFoundObject));
+        assertThrows(NotFoundException.class, () -> registrationService.updateRegistration(notFoundObject));
     }
 
     @Test
@@ -244,27 +244,27 @@ public class RegistrationServiceImplIntegrateTest {
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
-        registrationService.create(registrationDto, 1L);
+        registrationService.createRegistration(registrationDto, 1L);
 
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78885553535", 1L);
 
-        CreatedRegistrationResponseDto registration2 = registrationService.create(registrationDto2, 1L);
+        CreatedRegistrationResponseDto registration2 = registrationService.createRegistration(registrationDto2, 1L);
 
-        RegistrationResponseDto retrievedRegistration = registrationService.findById(registration2.id());
+        RegistrationResponseDto retrievedRegistration = registrationService.findRegistrationById(registration2.id());
 
         assertEquals(registrationDto2.username(), retrievedRegistration.username(), "usernames must be the same");
         assertEquals(registrationDto2.email(), retrievedRegistration.email(), "emails must be the same");
         assertEquals(registrationDto2.phone(), retrievedRegistration.phone(), "Phone numbers must be the same");
 
-        assertThrows(NotFoundException.class, () -> registrationService.findById(registration2.id() + 1),
+        assertThrows(NotFoundException.class, () -> registrationService.findRegistrationById(registration2.id() + 1),
                 "must throw not found exception if object not found");
     }
 
     @Test
     void findRegistrationsByEventIdSuccessWhenEmpty() {
         List<RegistrationResponseDto> emptyList =
-                registrationService.findAllByEventId(0, 10, 9999999999999L);
+                registrationService.findAllRegistrationsByEventId(0, 10, 9999999999999L);
 
         assertEquals(0, emptyList.size(), "List must be empty");
     }
@@ -282,10 +282,10 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        registrationService.create(registrationDto, 1L);
+        registrationService.createRegistration(registrationDto, 1L);
 
         List<RegistrationResponseDto> oneRegistrationList =
-                registrationService.findAllByEventId(0, 10, 2L);
+                registrationService.findAllRegistrationsByEventId(0, 10, 2L);
 
         assertEquals(1, oneRegistrationList.size(),
                 "There is only 1 registration for that event");
@@ -308,14 +308,14 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        registrationService.create(registrationDto, 1L);
+        registrationService.createRegistration(registrationDto, 1L);
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78885553535", 2L);
 
-        registrationService.create(registrationDto2, 1L);
+        registrationService.createRegistration(registrationDto2, 1L);
 
         List<RegistrationResponseDto> registrationsList =
-                registrationService.findAllByEventId(0, 10, 2L);
+                registrationService.findAllRegistrationsByEventId(0, 10, 2L);
 
         assertEquals(2, registrationsList.size(), "There are only 2 registrations for that event");
     }
@@ -333,12 +333,12 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
 
         RegistrationCredentials registrationNotExistDeleteDto =
                 createRegistrationCredentials(registration.id() + 1, registration.password());
 
-        assertThrows(NotFoundException.class, () -> registrationService.delete(registrationNotExistDeleteDto));
+        assertThrows(NotFoundException.class, () -> registrationService.deleteRegistration(registrationNotExistDeleteDto));
     }
 
     @Test
@@ -354,12 +354,12 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
 
         RegistrationCredentials wrongPasswordDeleteDto =
                 createRegistrationCredentials(registration.id(), "fail");
 
-        assertThrows(PasswordIncorrectException.class, () -> registrationService.delete(wrongPasswordDeleteDto));
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.deleteRegistration(wrongPasswordDeleteDto));
     }
 
     @Test
@@ -375,14 +375,14 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto registration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
 
         RegistrationCredentials deleteDto =
                 createRegistrationCredentials(registration.id(), registration.password());
 
-        registrationService.delete(deleteDto);
+        registrationService.deleteRegistration(deleteDto);
 
-        assertThrows(NotFoundException.class, () -> registrationService.findById(registration.id()));
+        assertThrows(NotFoundException.class, () -> registrationService.findRegistrationById(registration.id()));
     }
 
     @Test
@@ -390,9 +390,9 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
 
-        RegistrationResponseDto result = registrationService.findById(createdRegistration.id());
+        RegistrationResponseDto result = registrationService.findRegistrationById(createdRegistration.id());
 
         assertEquals(PENDING, result.status());
     }
@@ -411,7 +411,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
@@ -437,7 +437,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
@@ -469,7 +469,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
@@ -503,7 +503,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
@@ -537,7 +537,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
@@ -573,7 +573,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         RegistrationStatus newStatus = APPROVED;
@@ -606,7 +606,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
         RegistrationStatus approved = APPROVED;
@@ -614,7 +614,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78005553535", 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.create(registrationDto2, 1L);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
         RegistrationCredentials credentials2 = createRegistrationCredentials(createdRegistration2.id(),
                 createdRegistration2.password());
 
@@ -644,7 +644,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
         RegistrationStatus approved = APPROVED;
@@ -652,7 +652,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78005553535", 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.create(registrationDto2, 1L);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
         RegistrationCredentials credentials2 = createRegistrationCredentials(createdRegistration2.id(),
                 createdRegistration2.password());
         registrationService.updateRegistrationStatus(userId, createdRegistration2.id(),
@@ -666,7 +666,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         NewRegistrationDto registrationDto3 =
                 createNewRegistrationDto("user3", "mail2@mail.com", "78005553535", 1L);
-        CreatedRegistrationResponseDto createdRegistration3 = registrationService.create(registrationDto3, 1L);
+        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, 1L);
         RegistrationCredentials credentials3 = createRegistrationCredentials(createdRegistration3.id(),
                 createdRegistration3.password());
 
@@ -680,8 +680,8 @@ public class RegistrationServiceImplIntegrateTest {
                 approved, credentials3);
 
         assertEquals(WAITING, result);
-        assertEquals(WAITING, registrationService.findById(createdRegistration2.id()).status());
-        assertEquals(APPROVED, registrationService.findById(createdRegistration.id()).status());
+        assertEquals(WAITING, registrationService.findRegistrationById(createdRegistration2.id()).status());
+        assertEquals(APPROVED, registrationService.findRegistrationById(createdRegistration.id()).status());
     }
 
     @SneakyThrows
@@ -697,7 +697,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
@@ -727,7 +727,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         String incorrectPassword = "6666";
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), incorrectPassword);
 
@@ -753,7 +753,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         Long unknownId = 999L;
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
@@ -778,7 +778,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         String reason = "reason";
 
@@ -801,7 +801,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
 
         stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
@@ -833,7 +833,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
         TeamMemberDto teamMemberDto1 =
                 createTeamMember(userId + 2L, registrationDto.eventId(), TeamMemberRole.MEMBER);
@@ -867,7 +867,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
 
         stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
@@ -901,7 +901,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
 
         stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -934,7 +934,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
         TeamMemberDto teamMemberDto1 =
                 createTeamMember(userId + 2L, registrationDto.eventId(), TeamMemberRole.MANAGER);
@@ -970,7 +970,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         String incorrectPassword = "6666";
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), incorrectPassword);
         String reason = "reason";
@@ -995,7 +995,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.create(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         String reason = "reason";
         Long unknownId = 999L;
@@ -1024,9 +1024,9 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration1 = registrationService.create(registrationDto1, 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.create(registrationDto2, 1L);
-        CreatedRegistrationResponseDto createdRegistration3 = registrationService.create(registrationDto3, 1L);
+        CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, 1L);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
+        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, 1L);
 
         registrationService.updateRegistrationStatus(userId, createdRegistration2.id(), APPROVED,
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
@@ -1065,9 +1065,9 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration1 = registrationService.create(registrationDto1, 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.create(registrationDto2, 1L);
-        CreatedRegistrationResponseDto createdRegistration3 = registrationService.create(registrationDto3, 1L);
+        CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, 1L);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
+        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, 1L);
 
         registrationService.updateRegistrationStatus(userId, createdRegistration2.id(), APPROVED,
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
@@ -1105,8 +1105,8 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration1 = registrationService.create(registrationDto1, 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.create(registrationDto2, 1L);
+        CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, 1L);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
 
         registrationService.updateRegistrationStatus(userId, createdRegistration2.id(), APPROVED,
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
@@ -1117,7 +1117,7 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration3 = registrationService.create(registrationDto3, 1L);
+        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, 1L);
         registrationService.updateRegistrationStatus(userId, createdRegistration3.id(), WAITING,
                 new RegistrationCredentials(createdRegistration3.id(), createdRegistration3.password()));
 
@@ -1155,10 +1155,10 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration1 = registrationService.create(registrationDto1, 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.create(registrationDto2, 1L);
-        CreatedRegistrationResponseDto createdRegistration3 = registrationService.create(registrationDto3, 1L);
-        CreatedRegistrationResponseDto createdRegistration4 = registrationService.create(registrationDto4, 1L);
+        CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, 1L);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
+        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, 1L);
+        CreatedRegistrationResponseDto createdRegistration4 = registrationService.createRegistration(registrationDto4, 1L);
 
         registrationService.updateRegistrationStatus(userId, createdRegistration2.id(), APPROVED,
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
@@ -1171,7 +1171,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         registrationService.updateRegistrationStatus(userId, createdRegistration3.id(), WAITING,
                 new RegistrationCredentials(createdRegistration3.id(), createdRegistration3.password()));
-        registrationService.findAllByEventId(0, 10, registrationDto1.eventId());
+        registrationService.findAllRegistrationsByEventId(0, 10, registrationDto1.eventId());
 
         RegistrationCount count = registrationService.getRegistrationsCountByEventId(registrationDto1.eventId());
 

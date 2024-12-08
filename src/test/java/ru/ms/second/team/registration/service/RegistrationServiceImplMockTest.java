@@ -47,7 +47,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -98,19 +97,19 @@ public class RegistrationServiceImplMockTest {
                 0L, "user1", "mail@mail.com", "78005553535");
         EventDto event = createEvent(2L, 10);
 
-        when(mapper.toModel(any(NewRegistrationDto.class))).thenReturn(registrationFromMapper);
-        when(mapper.toCreatedDto(any(Registration.class))).thenReturn(createdRegistrationResponseDto);
-        when(registrationRepository.save(any(Registration.class))).thenReturn(registration);
+        when(mapper.toModel(newRegistrationDto)).thenReturn(registrationFromMapper);
+        when(mapper.toCreatedDto(registration)).thenReturn(createdRegistrationResponseDto);
+        when(registrationRepository.save(registrationFromMapper)).thenReturn(registration);
         when(eventClient.getEventById(1L, newRegistrationDto.eventId()))
                 .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
-        CreatedRegistrationResponseDto result = registrationService.create(newRegistrationDto, 1L);
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, 1L);
 
         assertEquals(result.id(), createdRegistrationResponseDto.id(), "id's must be same");
         assertEquals(result.password(), registration.getPassword(), "passwords must be same");
 
-        verify(mapper, times(1)).toModel(any(NewRegistrationDto.class));
-        verify(mapper, times(1)).toCreatedDto(any(Registration.class));
-        verify(registrationRepository, times(1)).save(any(Registration.class));
+        verify(mapper, times(1)).toModel(newRegistrationDto);
+        verify(mapper, times(1)).toCreatedDto(registration);
+        verify(registrationRepository, times(1)).save(registrationFromMapper);
     }
 
     @Test
@@ -127,19 +126,19 @@ public class RegistrationServiceImplMockTest {
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user2", "mail@mail.com", "78005553535");
 
-        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
-        when(mapper.toUpdatedDto(any(Registration.class))).thenReturn(updatedRegistrationResponseDto);
-        when(registrationRepository.save(any(Registration.class))).thenReturn(updatedRegistration);
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
+        when(mapper.toUpdatedDto(updatedRegistration)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationRepository.save(registration)).thenReturn(updatedRegistration);
 
-        UpdatedRegistrationResponseDto result = registrationService.update(updateRegistrationDto);
+        UpdatedRegistrationResponseDto result = registrationService.updateRegistration(updateRegistrationDto);
 
         assertEquals(updateRegistrationDto.username(), result.username(), "usernames must be same");
         assertEquals(registration.getEmail(), result.email(), "emails must be same");
         assertEquals(registration.getPhone(), result.phone(), "phones must be same");
 
-        verify(mapper, times(1)).toUpdatedDto(any(Registration.class));
-        verify(registrationRepository, times(1)).findById(anyLong());
-        verify(registrationRepository, times(1)).save(any(Registration.class));
+        verify(mapper, times(1)).toUpdatedDto(updatedRegistration);
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registration);
     }
 
     @Test
@@ -156,19 +155,19 @@ public class RegistrationServiceImplMockTest {
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "mail@gmail.com", "78005553535");
 
-        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
-        when(mapper.toUpdatedDto(any(Registration.class))).thenReturn(updatedRegistrationResponseDto);
-        when(registrationRepository.save(any(Registration.class))).thenReturn(updatedRegistration);
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
+        when(mapper.toUpdatedDto(updatedRegistration)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationRepository.save(registration)).thenReturn(updatedRegistration);
 
-        UpdatedRegistrationResponseDto result = registrationService.update(updateRegistrationDto);
+        UpdatedRegistrationResponseDto result = registrationService.updateRegistration(updateRegistrationDto);
 
         assertEquals(registration.getUsername(), result.username(), "usernames must be same");
         assertEquals(updateRegistrationDto.email(), result.email(), "emails must be same");
         assertEquals(registration.getPhone(), result.phone(), "phones must be same");
 
-        verify(mapper, times(1)).toUpdatedDto(any(Registration.class));
-        verify(registrationRepository, times(1)).findById(anyLong());
-        verify(registrationRepository, times(1)).save(any(Registration.class));
+        verify(mapper, times(1)).toUpdatedDto(updatedRegistration);
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registration);
     }
 
     @Test
@@ -185,19 +184,19 @@ public class RegistrationServiceImplMockTest {
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "mail@mail.com", "70123456789");
 
-        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
-        when(mapper.toUpdatedDto(any(Registration.class))).thenReturn(updatedRegistrationResponseDto);
-        when(registrationRepository.save(any(Registration.class))).thenReturn(updatedRegistration);
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
+        when(mapper.toUpdatedDto(updatedRegistration)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationRepository.save(registration)).thenReturn(updatedRegistration);
 
-        UpdatedRegistrationResponseDto result = registrationService.update(updateRegistrationDto);
+        UpdatedRegistrationResponseDto result = registrationService.updateRegistration(updateRegistrationDto);
 
         assertEquals(registration.getUsername(), result.username(), "usernames must be same");
         assertEquals(registration.getEmail(), result.email(), "emails must be same");
         assertEquals(updateRegistrationDto.phone(), result.phone(), "phones must be same");
 
-        verify(mapper, times(1)).toUpdatedDto(any(Registration.class));
-        verify(registrationRepository, times(1)).findById(anyLong());
-        verify(registrationRepository, times(1)).save(any(Registration.class));
+        verify(mapper, times(1)).toUpdatedDto(updatedRegistration);
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registration);
     }
 
     @Test
@@ -215,19 +214,19 @@ public class RegistrationServiceImplMockTest {
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user2", "mail@gmail.com", "70123456789");
 
-        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
-        when(mapper.toUpdatedDto(any(Registration.class))).thenReturn(updatedRegistrationResponseDto);
-        when(registrationRepository.save(any(Registration.class))).thenReturn(updatedRegistration);
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
+        when(mapper.toUpdatedDto(updatedRegistration)).thenReturn(updatedRegistrationResponseDto);
+        when(registrationRepository.save(registration)).thenReturn(updatedRegistration);
 
-        UpdatedRegistrationResponseDto result = registrationService.update(updateRegistrationDto);
+        UpdatedRegistrationResponseDto result = registrationService.updateRegistration(updateRegistrationDto);
 
         assertEquals(updateRegistrationDto.username(), result.username(), "usernames must be same");
         assertEquals(updateRegistrationDto.email(), result.email(), "emails must be same");
         assertEquals(updateRegistrationDto.phone(), result.phone(), "phones must be same");
 
-        verify(mapper, times(1)).toUpdatedDto(any(Registration.class));
-        verify(registrationRepository, times(1)).findById(anyLong());
-        verify(registrationRepository, times(1)).save(any(Registration.class));
+        verify(mapper, times(1)).toUpdatedDto(updatedRegistration);
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).save(registration);
     }
 
     @Test
@@ -239,11 +238,11 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
 
-        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
 
-        assertThrows(PasswordIncorrectException.class, () -> registrationService.update(updateRegistrationDto));
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.updateRegistration(updateRegistrationDto));
 
-        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).findById(registration.getId());
     }
 
     @Test
@@ -255,27 +254,27 @@ public class RegistrationServiceImplMockTest {
         registrationResponseDto =
                 createResponseDto(registration.getUsername(), registration.getEmail(), registration.getPhone());
 
-        when(mapper.toRegistrationDto(any(Registration.class))).thenReturn(registrationResponseDto);
-        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(mapper.toRegistrationDto(registration)).thenReturn(registrationResponseDto);
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
 
-        RegistrationResponseDto result = registrationService.findById(1L);
+        RegistrationResponseDto result = registrationService.findRegistrationById(1L);
 
         assertEquals(registration.getUsername(), result.username(), "usernames must be same");
         assertEquals(registration.getEmail(), result.email(), "emails must be same");
         assertEquals(registration.getPhone(), result.phone(), "phones must be same");
 
-        verify(mapper, times(1)).toRegistrationDto(any(Registration.class));
-        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(mapper, times(1)).toRegistrationDto(registration);
+        verify(registrationRepository, times(1)).findById(registration.getId());
     }
 
     @Test
     @DisplayName("Registration retrieval failed because object was not found")
     void getRegistrationFailNotFound() {
-        when(registrationRepository.findById(anyLong())).thenReturn(Optional.empty());
+        when(registrationRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> registrationService.findById(1L));
+        assertThrows(NotFoundException.class, () -> registrationService.findRegistrationById(1L));
 
-        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).findById(1L);
     }
 
     @Test
@@ -287,31 +286,32 @@ public class RegistrationServiceImplMockTest {
         registrationResponseDto =
                 createResponseDto(registration.getUsername(), registration.getEmail(), registration.getPhone());
         Page<Registration> page = new PageImpl(List.of(registration));
+        Pageable pageRequest = PageRequest.of(0, 10);
 
+        when(registrationRepository.findAllByEventId(1L, pageRequest)).thenReturn(page);
+        when(mapper.toRegistraionDtoList(List.of(registration))).thenReturn(List.of(registrationResponseDto));
 
-        when(registrationRepository.findAllByEventId(1L, PageRequest.of(0, 10))).thenReturn(page);
-        when(mapper.toRegistraionDtoList(any(List.class))).thenReturn(List.of(registrationResponseDto));
-
-        List<RegistrationResponseDto> result = registrationService.findAllByEventId(0, 10, 1L);
+        List<RegistrationResponseDto> result = registrationService.findAllRegistrationsByEventId(0, 10, 1L);
 
         assertEquals(registration.getUsername(), result.get(0).username(), "usernames must be same");
         assertEquals(registration.getEmail(), result.get(0).email(), "emails must be same");
         assertEquals(registration.getPhone(), result.get(0).phone(), "phones must be same");
 
-        verify(registrationRepository, times(1)).findAllByEventId(anyLong(), any(Pageable.class));
-        verify(mapper, times(1)).toRegistraionDtoList(any(List.class));
+        verify(registrationRepository, times(1)).findAllByEventId(1L, pageRequest);
+        verify(mapper, times(1)).toRegistraionDtoList(List.of(registration));
     }
 
     @Test
     @DisplayName("Retrieve all registrations by event id. Successful even when empty")
     void getAllRegistrationsByEventIdEmpty() {
-        when(registrationRepository.findAllByEventId(1L, PageRequest.of(0, 10))).thenReturn(Page.empty());
+        Pageable pageRequest = PageRequest.of(0, 10);
+        when(registrationRepository.findAllByEventId(1L, pageRequest)).thenReturn(Page.empty());
 
-        List<RegistrationResponseDto> result = registrationService.findAllByEventId(0, 10, 1L);
+        List<RegistrationResponseDto> result = registrationService.findAllRegistrationsByEventId(0, 10, 1L);
 
         assertEquals(0, result.size());
 
-        verify(registrationRepository, times(1)).findAllByEventId(anyLong(), any(Pageable.class));
+        verify(registrationRepository, times(1)).findAllByEventId(1L, pageRequest);
     }
 
     @Test
@@ -322,11 +322,11 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
 
-        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
 
-        registrationService.delete(registrationCredentials);
+        registrationService.deleteRegistration(registrationCredentials);
 
-        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).deleteById(registrationCredentials.id());
         verify(declinedRegistrationRepository, times(1))
                 .deleteAllByRegistrationId(registrationCredentials.id());
@@ -340,11 +340,11 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
 
-        when(registrationRepository.findById(anyLong())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
 
-        assertThrows(PasswordIncorrectException.class, () -> registrationService.delete(registrationCredentials));
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.deleteRegistration(registrationCredentials));
 
-        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, never()).deleteById(registrationCredentials.id());
         verify(declinedRegistrationRepository, never()).deleteAllByRegistrationId(registrationCredentials.id());
     }
@@ -354,11 +354,11 @@ public class RegistrationServiceImplMockTest {
     void deleteFailNotFound() {
         registrationCredentials = createRegistrationCredentials("4321");
 
-        when(registrationRepository.findById(anyLong())).thenReturn(Optional.empty());
+        when(registrationRepository.findById(registrationCredentials.id())).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> registrationService.delete(registrationCredentials));
+        assertThrows(NotFoundException.class, () -> registrationService.deleteRegistration(registrationCredentials));
 
-        verify(registrationRepository, times(1)).findById(anyLong());
+        verify(registrationRepository, times(1)).findById(registrationCredentials.id());
         verify(registrationRepository, never()).deleteById(registrationCredentials.id());
         verify(declinedRegistrationRepository, never()).deleteAllByRegistrationId(registrationCredentials.id());
     }
@@ -392,7 +392,7 @@ public class RegistrationServiceImplMockTest {
 
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).save(registrationToSave);
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
     }
 
     @Test
@@ -410,7 +410,7 @@ public class RegistrationServiceImplMockTest {
                 .thenReturn(Optional.of(registration));
         when(registrationRepository.save(any()))
                 .thenReturn(registration);
-        when(eventClient.getEventById((userId), registration.getEventId()))
+        when(eventClient.getEventById(userId, registration.getEventId()))
                 .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
         when(eventClient.getTeamsByEventId(userId, registration.getEventId()))
                 .thenReturn(new ResponseEntity<>(List.of(teamMemberDto), HttpStatus.OK));
@@ -427,8 +427,8 @@ public class RegistrationServiceImplMockTest {
 
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).save(registrationToSave);
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test
@@ -465,8 +465,8 @@ public class RegistrationServiceImplMockTest {
 
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).save(registrationToSave);
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test
@@ -495,8 +495,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
                 userId, registration.getEventId()), ex.getMessage());
 
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test
@@ -524,8 +524,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
                 userId, registration.getEventId()), ex.getMessage());
 
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test
@@ -555,8 +555,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
                 userId, registration.getEventId()), ex.getMessage());
 
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test
@@ -823,7 +823,7 @@ public class RegistrationServiceImplMockTest {
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).save(registrationToSave);
         verify(declinedRegistrationRepository, times(1)).save(declinedRegistrationToSave);
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
     }
 
     @Test
@@ -868,8 +868,8 @@ public class RegistrationServiceImplMockTest {
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).save(registrationToSave);
         verify(declinedRegistrationRepository, times(1)).save(declinedRegistrationToSave);
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test
@@ -916,8 +916,8 @@ public class RegistrationServiceImplMockTest {
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).save(registrationToSave);
         verify(declinedRegistrationRepository, times(1)).save(declinedRegistrationToSave);
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test
@@ -964,8 +964,8 @@ public class RegistrationServiceImplMockTest {
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).save(registrationToSave);
         verify(declinedRegistrationRepository, times(1)).save(declinedRegistrationToSave);
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test
@@ -995,8 +995,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
                 userId, registration.getEventId()), ex.getMessage());
 
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test
@@ -1028,8 +1028,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
                 userId, registration.getEventId()), ex.getMessage());
 
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test
@@ -1057,8 +1057,8 @@ public class RegistrationServiceImplMockTest {
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
                 userId, registration.getEventId()), ex.getMessage());
 
-        verify(eventClient, times(1)).getEventById(anyLong(), anyLong());
-        verify(eventClient, times(1)).getTeamsByEventId(anyLong(), anyLong());
+        verify(eventClient, times(1)).getEventById(userId, registration.getEventId());
+        verify(eventClient, times(1)).getTeamsByEventId(userId, registration.getEventId());
     }
 
     @Test

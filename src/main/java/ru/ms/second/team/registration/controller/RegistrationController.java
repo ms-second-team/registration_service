@@ -52,7 +52,8 @@ public class RegistrationController {
     @Operation(summary = "Create registration")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Created new registration", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = CreatedRegistrationResponseDto.class))
+                    @Content(mediaType = "application/json", schema = @Schema(
+                            implementation = CreatedRegistrationResponseDto.class))
             }),
             @ApiResponse(responseCode = "400", description = "Validation error", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
@@ -63,17 +64,18 @@ public class RegistrationController {
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public CreatedRegistrationResponseDto create(@RequestHeader("X-User-Id") @Positive Long userId,
-                                                 @Parameter(description = "New registration data")
-                                                 @RequestBody @Valid NewRegistrationDto registrationDto) {
+    public CreatedRegistrationResponseDto createRegistration(@RequestHeader("X-User-Id") @Positive Long userId,
+                                                             @Parameter(description = "New registration data")
+                                                             @RequestBody @Valid NewRegistrationDto registrationDto) {
         log.debug("RegistrationController: POST /registrations");
-        return registrationService.create(registrationDto, userId);
+        return registrationService.createRegistration(registrationDto, userId);
     }
 
     @Operation(summary = "Update registration")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Registration is updated", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = UpdatedRegistrationResponseDto.class))
+                    @Content(mediaType = "application/json", schema = @Schema(
+                            implementation = UpdatedRegistrationResponseDto.class))
             }),
             @ApiResponse(responseCode = "400", description = "Validation error", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
@@ -89,16 +91,18 @@ public class RegistrationController {
             })
     })
     @PatchMapping
-    public UpdatedRegistrationResponseDto update(@Parameter(description = "New registration data for update")
-                                                 @RequestBody @Valid UpdateRegistrationDto updateDto) {
+    public UpdatedRegistrationResponseDto updateRegistration(@Parameter(
+            description = "New registration data for updateRegistration")
+                                                             @RequestBody @Valid UpdateRegistrationDto updateDto) {
         log.debug("RegistrationController: PATCH /registrations");
-        return registrationService.update(updateDto);
+        return registrationService.updateRegistration(updateDto);
     }
 
     @Operation(summary = "Find registration by registration id")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Registration is found", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = UpdatedRegistrationResponseDto.class))
+                    @Content(mediaType = "application/json", schema = @Schema(
+                            implementation = UpdatedRegistrationResponseDto.class))
             }),
             @ApiResponse(responseCode = "404", description = "Registration not found", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
@@ -111,34 +115,37 @@ public class RegistrationController {
     public RegistrationResponseDto findRegistrationById(@Parameter(description = "Registration id")
                                                         @PathVariable @Positive Long id) {
         log.debug("RegistrationController: GET /registrations/{}", id);
-        return registrationService.findById(id);
+        return registrationService.findRegistrationById(id);
     }
 
     @Operation(summary = "Find registrations by event id")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Registrations are found", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = UpdatedRegistrationResponseDto.class))
+                    @Content(mediaType = "application/json", schema = @Schema(
+                            implementation = UpdatedRegistrationResponseDto.class))
             }),
             @ApiResponse(responseCode = "500", description = "Unknown error", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
             })
     })
     @GetMapping
-    public List<RegistrationResponseDto> findAllByEventId(@Parameter(description = "Page number")
-                                                          @RequestParam(defaultValue = "0") @Min(0) int page,
-                                                          @Parameter(description = "Number of registrations per page")
-                                                          @RequestParam(defaultValue = "10") @Positive int size,
-                                                          @Parameter(description = "Event id")
-                                                          @RequestParam @Positive Long eventId) {
+    public List<RegistrationResponseDto> findAllRegistrationsByEventId(@Parameter(description = "Page number")
+                                                                       @RequestParam(defaultValue = "0") @Min(0) int page,
+                                                                       @Parameter(description =
+                                                                               "Number of registrations per page")
+                                                                       @RequestParam(defaultValue = "10") @Positive int size,
+                                                                       @Parameter(description = "Event id")
+                                                                       @RequestParam @Positive Long eventId) {
         log.info("RegistrationController: GET /registrations, params page={}, size={}, eventId={}",
                 page, size, eventId);
-        return registrationService.findAllByEventId(page, size, eventId);
+        return registrationService.findAllRegistrationsByEventId(page, size, eventId);
     }
 
     @Operation(summary = "Delete registration")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Registration is deleted", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = UpdatedRegistrationResponseDto.class))
+                    @Content(mediaType = "application/json", schema = @Schema(
+                            implementation = UpdatedRegistrationResponseDto.class))
             }),
             @ApiResponse(responseCode = "400", description = "Validation error", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
@@ -155,16 +162,17 @@ public class RegistrationController {
     })
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@Parameter(description = "Registration credentials")
-                       @RequestBody @Valid RegistrationCredentials deleteDto) {
+    public void deleteRegistration(@Parameter(description = "Registration credentials")
+                                   @RequestBody @Valid RegistrationCredentials deleteDto) {
         log.debug("RegistrationController: DELETE /registrations");
-        registrationService.delete(deleteDto);
+        registrationService.deleteRegistration(deleteDto);
     }
 
     @Operation(summary = "Update registration status")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Registration status is updated", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = UpdatedRegistrationResponseDto.class))
+                    @Content(mediaType = "application/json", schema = @Schema(
+                            implementation = UpdatedRegistrationResponseDto.class))
             }),
             @ApiResponse(responseCode = "400", description = "Validation error", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
@@ -195,7 +203,8 @@ public class RegistrationController {
     @Operation(summary = "Decline registration")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Registration is declined", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = UpdatedRegistrationResponseDto.class))
+                    @Content(mediaType = "application/json", schema = @Schema(
+                            implementation = UpdatedRegistrationResponseDto.class))
             }),
             @ApiResponse(responseCode = "400", description = "Validation error", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
@@ -226,7 +235,8 @@ public class RegistrationController {
     @Operation(summary = "Search registrations")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Registrations found", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = UpdatedRegistrationResponseDto.class))
+                    @Content(mediaType = "application/json", schema = @Schema(
+                            implementation = UpdatedRegistrationResponseDto.class))
             }),
             @ApiResponse(responseCode = "500", description = "Unknown error", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
@@ -244,7 +254,8 @@ public class RegistrationController {
     @Operation(summary = "Get registrations count for event")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Registrations count for event found", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = UpdatedRegistrationResponseDto.class))
+                    @Content(mediaType = "application/json", schema = @Schema(
+                            implementation = UpdatedRegistrationResponseDto.class))
             }),
             @ApiResponse(responseCode = "500", description = "Unknown error", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))
