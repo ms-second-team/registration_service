@@ -70,18 +70,17 @@ public class RegistrationControllerTest {
         newRegistrationDto =
                 createNewRegistrationDto("user1", "email@mail.com", "78005553535", 1L);
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
-        when(registrationService.createRegistration(newRegistrationDto, userId))
+        when(registrationService.createRegistration(newRegistrationDto))
                 .thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
-                        .header("X-User-Id", userId)
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.password", is(createdRegistrationResponseDto.password())));
-        verify(registrationService, times(1)).createRegistration(newRegistrationDto, userId);
+        verify(registrationService, times(1)).createRegistration(newRegistrationDto);
     }
 
     @Test
@@ -97,7 +96,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(any(), anyLong());
+        verify(registrationService, never()).createRegistration(any());
     }
 
     @Test
@@ -108,12 +107,11 @@ public class RegistrationControllerTest {
                 createNewRegistrationDto("user1", "email@mail.com", "7123456", 1L);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
-                        .header("X-User-Id", userId)
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(any(), anyLong());
+        verify(registrationService, never()).createRegistration(any());
     }
 
     @Test
@@ -124,12 +122,11 @@ public class RegistrationControllerTest {
                 createNewRegistrationDto("user1", "mail.com", "78005553535", 1L);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
-                        .header("X-User-Id", userId)
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(any(), anyLong());
+        verify(registrationService, never()).createRegistration(any());
     }
 
     @Test
@@ -140,43 +137,11 @@ public class RegistrationControllerTest {
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 0L);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
-                        .header("X-User-Id", userId)
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(any(), anyLong());
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Creation Failed due to user id is null")
-    void createNewRegistrationUserIdIsNull() {
-        newRegistrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        mvc.perform(post("/registrations")
-                        .content(mapper.writeValueAsString(newRegistrationDto))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(any(), anyLong());
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Creation Failed due to user id is not positive")
-    void createNewRegistrationUserIdIsNonPositive() {
-        newRegistrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        mvc.perform(post("/registrations")
-                        .content(mapper.writeValueAsString(newRegistrationDto))
-                        .header("X-User-Id", 0L)
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(any(), anyLong());
+        verify(registrationService, never()).createRegistration(any());
     }
 
     @Test

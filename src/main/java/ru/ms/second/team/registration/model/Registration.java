@@ -1,7 +1,12 @@
 package ru.ms.second.team.registration.model;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -29,4 +34,7 @@ public class Registration {
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+    @Column(name = "user_id")
+    Long userId;
+
 }

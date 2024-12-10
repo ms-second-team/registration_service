@@ -1,0 +1,2 @@
+ALTER TABLE registrations
+ADD COLUMN user_id BIGINT NOT NULL
