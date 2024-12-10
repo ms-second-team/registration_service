@@ -15,7 +15,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import ru.ms.second.team.registration.client.EventClient;
+import ru.ms.second.team.registration.client.event.EventClient;
+import ru.ms.second.team.registration.client.user.UserClient;
 import ru.ms.second.team.registration.dto.event.EventDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
@@ -26,6 +27,8 @@ import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDt
 import ru.ms.second.team.registration.dto.response.RegistrationCount;
 import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
 import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.user.NewUserRequest;
+import ru.ms.second.team.registration.dto.user.UserDto;
 import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
@@ -69,12 +72,15 @@ public class RegistrationServiceImplMockTest {
     private RegistrationMapper mapper;
     @Mock
     private EventClient eventClient;
+    @Mock
+    private UserClient userClient;
 
     private UpdateRegistrationDto updateRegistrationDto;
     private UpdatedRegistrationResponseDto updatedRegistrationResponseDto;
     private RegistrationCredentials registrationCredentials;
     private RegistrationResponseDto registrationResponseDto;
     private Registration registration;
+
     @Captor
     private ArgumentCaptor<Registration> captor;
     @Captor
@@ -94,15 +100,18 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535");
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto(registration.getId());
         Registration registrationFromMapper = createRegistration(
-                0L, "user1", "mail@mail.com", "78005553535");
+                null, "user1", "mail@mail.com", "78005553535");
         EventDto event = createEvent(2L, 10);
+        UserDto userDto = createUser();
 
         when(mapper.toModel(newRegistrationDto)).thenReturn(registrationFromMapper);
         when(mapper.toCreatedDto(registration)).thenReturn(createdRegistrationResponseDto);
         when(registrationRepository.save(registrationFromMapper)).thenReturn(registration);
+        when(userClient.createUser(any(NewUserRequest.class))).thenReturn(userDto);
         when(eventClient.getEventById(1L, newRegistrationDto.eventId()))
                 .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
-        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, 1L);
+
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto);
 
         assertEquals(result.id(), createdRegistrationResponseDto.id(), "id's must be same");
         assertEquals(result.password(), registration.getPassword(), "passwords must be same");
@@ -321,8 +330,10 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
+        UserDto userDto = createUser();
 
         when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
+        when(userClient.findUserByUserId(1L, 1L)).thenReturn(userDto);
 
         registrationService.deleteRegistration(registrationCredentials);
 
@@ -1182,6 +1193,7 @@ public class RegistrationServiceImplMockTest {
                 .phone(phone)
                 .eventId(1L)
                 .email(email)
+                .userId(1L)
                 .build();
     }
 
@@ -1197,6 +1209,7 @@ public class RegistrationServiceImplMockTest {
                 .eventId(1L)
                 .password("1234")
                 .status(PENDING)
+                .userId(1L)
                 .build();
     }
 
@@ -1234,5 +1247,13 @@ public class RegistrationServiceImplMockTest {
                 .userId(userId)
                 .role(role)
                 .build();
+    }
+
+    private UserDto createUser() {
+        return UserDto.builder()
+                .id(1L)
+                .name("user1")
+                .email("mail@mail.com")
+                .password("8Symbols!").build();
     }
 }

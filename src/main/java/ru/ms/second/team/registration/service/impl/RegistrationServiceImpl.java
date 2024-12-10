@@ -2,11 +2,16 @@ package ru.ms.second.team.registration.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.passay.CharacterData;
+import org.passay.CharacterRule;
+import org.passay.EnglishCharacterData;
+import org.passay.PasswordGenerator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.ms.second.team.registration.client.EventClient;
+import ru.ms.second.team.registration.client.event.EventClient;
+import ru.ms.second.team.registration.client.user.UserClient;
 import ru.ms.second.team.registration.dto.event.EventDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
@@ -17,6 +22,8 @@ import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDt
 import ru.ms.second.team.registration.dto.response.RegistrationCount;
 import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
 import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.user.NewUserRequest;
+import ru.ms.second.team.registration.dto.user.UserDto;
 import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
@@ -29,6 +36,7 @@ import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.RegistrationService;
 
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -46,15 +54,20 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final DeclinedRegistrationRepository declinedRegistrationRepository;
     private final RegistrationMapper registrationMapper;
     private final EventClient eventClient;
+    private final UserClient userClient;
 
     @Override
-    public CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto, Long userId) {
+    @Transactional
+    public CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto) {
         log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
-
-        findEventOrThrow(userId, creationDto.eventId());
+        String userPassword = generateUserPassword();
+        NewUserRequest newUserRequest = generateNewUserRequest(creationDto, userPassword);
+        UserDto createdUser = userClient.createUser(newUserRequest);
+        findEventOrThrow(createdUser.id(), creationDto.eventId());
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(generatePassword());
+        registration.setUserId(createdUser.id());
         registration = registrationRepository.save(registration);
 
         return registrationMapper.toCreatedDto(registration);
@@ -64,7 +77,6 @@ public class RegistrationServiceImpl implements RegistrationService {
     public UpdatedRegistrationResponseDto updateRegistration(UpdateRegistrationDto updateDto) {
         log.info("RegistrationService: executing updateRegistration method. Updating registration with id {}, updateDto {}",
                 updateDto.id(), updateDto);
-
         Registration registration = findRegistrationOrThrow(updateDto.id());
         checkPasswordOrThrow(registration.getPassword(), updateDto.password(), updateDto.id());
         registrationMapper.updateRegistration(updateDto, registration);
@@ -99,6 +111,8 @@ public class RegistrationServiceImpl implements RegistrationService {
         registrationRepository.deleteById(registrationCredentials.id());
         declinedRegistrationRepository.deleteAllByRegistrationId(registrationCredentials.id());
         updateStatusOfClosestWaitingRegistration(registration);
+        UserDto user = findUserOrThrow(registration.getUserId());
+        userClient.deleteUser(registration.getUserId(), user.password());
     }
 
     @Override
@@ -228,5 +242,40 @@ public class RegistrationServiceImpl implements RegistrationService {
         List<TeamMemberDto> teamMemberDtoList = eventClient.getTeamsByEventId(userId, eventId).getBody();
         return teamMemberDtoList.stream()
                 .anyMatch(tm -> tm.userId().equals(userId) && tm.role().equals(TeamMemberRole.MANAGER));
+    }
+
+    private NewUserRequest generateNewUserRequest(NewRegistrationDto newRegistrationDto, String password) {
+        return NewUserRequest.builder()
+                .name(newRegistrationDto.username())
+                .email(newRegistrationDto.email())
+                .password(password)
+                .build();
+    }
+
+    private String generateUserPassword() {
+        CharacterRule specialCharacterRule = new CharacterRule(new CharacterData() {
+            @Override
+            public String getErrorCode() {
+                return "Error occurred while generating password";
+            }
+
+            @Override
+            public String getCharacters() {
+                return "!@#$%^&*()-+_";
+            }
+        });
+
+        List<CharacterRule> rules = Arrays.asList(
+                new CharacterRule(EnglishCharacterData.LowerCase),
+                new CharacterRule(EnglishCharacterData.Digit),
+                new CharacterRule(EnglishCharacterData.UpperCase),
+                specialCharacterRule
+        );
+        PasswordGenerator passwordGenerator = new PasswordGenerator();
+        return passwordGenerator.generatePassword(8, rules);
+    }
+
+    private UserDto findUserOrThrow(Long userId) {
+        return userClient.findUserByUserId(userId, userId);
     }
 }

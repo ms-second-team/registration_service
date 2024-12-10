@@ -21,6 +21,9 @@ public record RegistrationResponseDto(
         Long eventId,
 
         @Schema(description = "Registration status")
-        RegistrationStatus status
+        RegistrationStatus status,
+
+        @Schema(description = "User id")
+        Long userId
 ) {
 }

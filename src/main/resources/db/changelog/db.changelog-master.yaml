@@ -31,3 +31,11 @@ databaseChangeLog:
             dbms: postgresql
             path: changeset/v4_create_declined_registrations.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 5
+      author: kpetrosyan
+      changes:
+        - sqlFile:
+            dbms: postgresql
+            path: changeset/v5_add_user_id_to_registrations.sql
+            relativeToChangelogFile: true

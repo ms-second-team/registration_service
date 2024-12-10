@@ -64,11 +64,10 @@ public class RegistrationController {
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public CreatedRegistrationResponseDto createRegistration(@RequestHeader("X-User-Id") @Positive Long userId,
-                                                             @Parameter(description = "New registration data")
+    public CreatedRegistrationResponseDto createRegistration(@Parameter(description = "New registration data")
                                                              @RequestBody @Valid NewRegistrationDto registrationDto) {
         log.debug("RegistrationController: POST /registrations");
-        return registrationService.createRegistration(registrationDto, userId);
+        return registrationService.createRegistration(registrationDto);
     }
 
     @Operation(summary = "Update registration")
