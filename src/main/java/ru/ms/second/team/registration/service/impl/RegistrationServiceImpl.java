@@ -52,7 +52,13 @@ public class RegistrationServiceImpl implements RegistrationService {
         log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
 
-        findEventOrThrow(userId, creationDto.eventId());
+        EventDto eventDto = findEventOrThrow(userId, creationDto.eventId());
+
+        if (!eventDto.registrationStatus().equals("OPEN")) {
+            throw new NotAuthorizedException(String.format(
+                    "Registration for the event with id =" + creationDto.eventId() + " " + eventDto.registrationStatus()));
+        }
+
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(generatePassword());
         registration = registrationRepository.save(registration);

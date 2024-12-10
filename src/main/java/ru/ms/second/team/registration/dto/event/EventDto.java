@@ -27,6 +27,8 @@ public record EventDto(
 
         Long ownerId,
 
-        int participantLimit
+        int participantLimit,
+
+        String registrationStatus
 ) {
 }

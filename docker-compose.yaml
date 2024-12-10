@@ -10,7 +10,7 @@ services:
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://registrations-db:5432/registrations-db
       - POSTGRES_DB=registrations-db
-      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=root
 
   registrations-db:
@@ -19,6 +19,6 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=root
+      - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=root
       - POSTGRES_DB=registrations-db
