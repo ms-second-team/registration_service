@@ -60,7 +60,7 @@ public class RegistrationServiceImplIntegrateTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:13.7-alpine");
 
     @Autowired
     RegistrationServiceImpl registrationService;
@@ -81,7 +81,7 @@ public class RegistrationServiceImplIntegrateTest {
     void createRegistration() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -114,10 +114,50 @@ public class RegistrationServiceImplIntegrateTest {
 
     @Test
     @SneakyThrows
+    void createRegistrationWhenEventRegistrationStatusClosed_ShouldThrowNotAuthorizedException() {
+        NewRegistrationDto registrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+
+        EventDto eventDto = createEvent(userId, 0, "CLOSED");
+
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
+
+        NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
+                () -> registrationService.createRegistration(registrationDto, userId));
+
+        assertEquals("Registration for the event with id =" + eventDto.id() + " CLOSED", ex.getMessage());
+    }
+
+    @Test
+    @SneakyThrows
+    void createRegistrationWhenEventRegistrationStatusSuspended_ShouldThrowNotAuthorizedException() {
+        NewRegistrationDto registrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+
+        EventDto eventDto = createEvent(userId, 0, "SUSPENDED");
+
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
+
+        NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
+                () -> registrationService.createRegistration(registrationDto, userId));
+
+        assertEquals("Registration for the event with id =" + eventDto.id() + " SUSPENDED", ex.getMessage());
+    }
+
+    @Test
+    @SneakyThrows
     void updateRegistrationUsernameSuccess() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -143,7 +183,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationEmailSuccess() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -169,7 +209,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationPhoneSuccess() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -195,7 +235,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationFailIncorrectPassword() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -216,7 +256,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationFailNotFound() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -237,7 +277,7 @@ public class RegistrationServiceImplIntegrateTest {
     void findRegistrationById() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -274,7 +314,7 @@ public class RegistrationServiceImplIntegrateTest {
     void findRegistrationsByEventIdOneRegistrationOnly() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 2L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -300,7 +340,7 @@ public class RegistrationServiceImplIntegrateTest {
     void findRegistrationsByEventIdTwoRegistrations() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 2L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -325,7 +365,7 @@ public class RegistrationServiceImplIntegrateTest {
     void deleteNonExistingRegistrationByIdFail() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -346,7 +386,7 @@ public class RegistrationServiceImplIntegrateTest {
     void deleteRegistrationByIdFailWrongPassword() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -367,7 +407,7 @@ public class RegistrationServiceImplIntegrateTest {
     void deleteRegistrationByIdSuccess() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -403,7 +443,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenUserIsEventOwnerValidPasswordAndRegistrationFound_shouldUpdateStatus() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -429,7 +469,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenUserIsManager_shouldUpdateStatus() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 0);
+        EventDto eventDto = createEvent(userId + 1L, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -461,7 +501,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenUserIsManagerAndTwoTeamMembersWereFound_shouldUpdateStatus() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 0);
+        EventDto eventDto = createEvent(userId + 1L, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -495,7 +535,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenUserIsTeamMemberAndOneTeamMemberWasFound_shouldThrowNotAuthorized() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 0);
+        EventDto eventDto = createEvent(userId + 1L, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -529,7 +569,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenUserIsTeamMemberAndTwoTeamMembersWereFound_shouldThrowNotAuthorized() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 0);
+        EventDto eventDto = createEvent(userId + 1L, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -565,7 +605,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenUserIsNotTeamMemberOrOwner_shouldThrowNotAuthorized() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 0);
+        EventDto eventDto = createEvent(userId + 1L, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -598,7 +638,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenParticipantLimitExceededByOne_shouldSetStatusToWaiting() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 1);
+        EventDto eventDto = createEvent(userId, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -636,7 +676,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenParticipantLimitExceededByTwo_shouldSetStatusToWaiting() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 1);
+        EventDto eventDto = createEvent(userId, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -689,7 +729,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenEventNotFound_shouldThrowNotFoundException() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 1);
+        EventDto eventDto = createEvent(userId, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -719,7 +759,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenInvalidPassword_shouldThrowPasswordIncorrectException() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 1);
+        EventDto eventDto = createEvent(userId, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -745,7 +785,7 @@ public class RegistrationServiceImplIntegrateTest {
     void updateRegistrationStatus_whenRegistrationNotFound_shouldThrowNotFoundException() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 1);
+        EventDto eventDto = createEvent(userId, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -770,7 +810,7 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsEventOwnerAndValidPasswordAndRegistrationFound_shouldSetDeclineStatus() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 1);
+        EventDto eventDto = createEvent(userId, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -793,7 +833,7 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsTeamManager_shouldSetDeclineStatus() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 1);
+        EventDto eventDto = createEvent(userId + 1L, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -825,7 +865,7 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsTeamManagerAndTwoUsersInTeam_shouldSetDeclineStatus() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 1);
+        EventDto eventDto = createEvent(userId + 1L, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -859,7 +899,7 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsTeamMemberAndOneUserInTeam_shouldThrowNotAuthorized() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 1);
+        EventDto eventDto = createEvent(userId + 1L, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -893,7 +933,7 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsNotTeamMemberOrOwner_shouldThrowNotAuthorized() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 1);
+        EventDto eventDto = createEvent(userId + 1L, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -926,7 +966,7 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsTeamMemberAndTwoUsersInTeamAndUserNotAuthorized_shouldThrowNotAuthorized() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 1);
+        EventDto eventDto = createEvent(userId + 1L, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -962,7 +1002,7 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenInvalidPassword_shouldThrowPasswordIncorrectException() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 1);
+        EventDto eventDto = createEvent(userId, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -987,7 +1027,7 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenNotFound_shouldThrowNofFoundException() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 1);
+        EventDto eventDto = createEvent(userId, 1, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -1016,7 +1056,7 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user2", "mail@mail.com", "78005553535", 1L);
         NewRegistrationDto registrationDto3 =
                 createNewRegistrationDto("user3", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto1.eventId()))
                 .willReturn(aResponse()
@@ -1057,7 +1097,7 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user2", "mail@mail.com", "78005553535", 1L);
         NewRegistrationDto registrationDto3 =
                 createNewRegistrationDto("user3", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto2.eventId()))
                 .willReturn(aResponse()
@@ -1097,7 +1137,7 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user2", "mail@mail.com", "78005553535", 1L);
         NewRegistrationDto registrationDto3 =
                 createNewRegistrationDto("user3", "mail@mail.com", "78005553535", 2L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto2.eventId()))
                 .willReturn(aResponse()
@@ -1147,7 +1187,7 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user3", "mail@mail.com", "78005553535", 1L);
         NewRegistrationDto registrationDto4 =
                 createNewRegistrationDto("user4", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         stubFor(get(urlEqualTo("/events/" + registrationDto2.eventId()))
                 .willReturn(aResponse()
@@ -1207,7 +1247,7 @@ public class RegistrationServiceImplIntegrateTest {
                 .password(password).build();
     }
 
-    private EventDto createEvent(long ownerId, int participantLimit) {
+    private EventDto createEvent(long ownerId, int participantLimit, String status) {
         return EventDto.builder()
                 .id(1L)
                 .name("event name " + ownerId)
@@ -1216,6 +1256,7 @@ public class RegistrationServiceImplIntegrateTest {
                 .startDateTime(LocalDateTime.now().plusDays(ownerId))
                 .endDateTime(LocalDateTime.now().plusMonths(ownerId))
                 .participantLimit(participantLimit)
+                .registrationStatus(status)
                 .build();
     }
 

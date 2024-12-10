@@ -95,13 +95,14 @@ public class RegistrationServiceImplMockTest {
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto(registration.getId());
         Registration registrationFromMapper = createRegistration(
                 0L, "user1", "mail@mail.com", "78005553535");
-        EventDto event = createEvent(2L, 10);
+        EventDto event = createEvent(2L, 10, "OPEN");
 
         when(mapper.toModel(newRegistrationDto)).thenReturn(registrationFromMapper);
         when(mapper.toCreatedDto(registration)).thenReturn(createdRegistrationResponseDto);
         when(registrationRepository.save(registrationFromMapper)).thenReturn(registration);
         when(eventClient.getEventById(1L, newRegistrationDto.eventId()))
                 .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
+
         CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, 1L);
 
         assertEquals(result.id(), createdRegistrationResponseDto.id(), "id's must be same");
@@ -370,7 +371,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto event = createEvent(userId, 10);
+        EventDto event = createEvent(userId, 10, "OPEN");
         registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
@@ -403,7 +404,7 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
-        EventDto event = createEvent((userId + 1), 10);
+        EventDto event = createEvent((userId + 1), 10, "OPEN");
         registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
@@ -441,7 +442,7 @@ public class RegistrationServiceImplMockTest {
         TeamMemberDto teamMemberDto1 = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
         TeamMemberDto teamMemberDto2 =
                 createTeamMember(userId + 2L, registration.getEventId(), TeamMemberRole.MEMBER);
-        EventDto event = createEvent((userId + 1), 10);
+        EventDto event = createEvent((userId + 1), 10, "OPEN");
         registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
@@ -477,7 +478,7 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
-        EventDto event = createEvent((userId + 1), 10);
+        EventDto event = createEvent((userId + 1), 10, "OPEN");
         registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
@@ -506,7 +507,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto event = createEvent((userId + 1), 10);
+        EventDto event = createEvent((userId + 1), 10, "OPEN");
         registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
@@ -537,7 +538,7 @@ public class RegistrationServiceImplMockTest {
         );
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
         TeamMemberDto teamMemberDto2 = createTeamMember(userId + 2, registration.getEventId(), TeamMemberRole.MANAGER);
-        EventDto event = createEvent((userId + 1), 10);
+        EventDto event = createEvent((userId + 1), 10, "OPEN");
         registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
@@ -567,7 +568,7 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
         registrationCredentials = createRegistrationCredentials("1234");
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -600,7 +601,7 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535", APPROVED
         );
         registrationCredentials = createRegistrationCredentials("1234");
-        EventDto eventDto = createEvent(userId, 1);
+        EventDto eventDto = createEvent(userId, 1, "OPEN");
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -638,7 +639,7 @@ public class RegistrationServiceImplMockTest {
                 3L, "user3", "mail3@mail.com", "78005553535", APPROVED
         );
         registrationCredentials = createRegistrationCredentials("1234");
-        EventDto eventDto = createEvent(userId, 1);
+        EventDto eventDto = createEvent(userId, 1, "OPEN");
 
         when(registrationRepository.findById(registration1.getId()))
                 .thenReturn(Optional.of(registration1));
@@ -677,7 +678,7 @@ public class RegistrationServiceImplMockTest {
                 3L, "user3", "mail3@mail.com", "78005553535", APPROVED
         );
         registrationCredentials = createRegistrationCredentials("1234");
-        EventDto eventDto = createEvent(userId, 3);
+        EventDto eventDto = createEvent(userId, 3, "OPEN");
 
         when(registrationRepository.findById(registration1.getId()))
                 .thenReturn(Optional.of(registration1));
@@ -716,7 +717,7 @@ public class RegistrationServiceImplMockTest {
                 3L, "user3", "mail3@mail.com", "78005553535", APPROVED
         );
         registrationCredentials = createRegistrationCredentials("1234");
-        EventDto eventDto = createEvent(userId, 0);
+        EventDto eventDto = createEvent(userId, 0, "OPEN");
 
         when(registrationRepository.findById(registration1.getId()))
                 .thenReturn(Optional.of(registration1));
@@ -791,7 +792,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId, 10);
+        EventDto eventDto = createEvent(userId, 10, "OPEN");
         RegistrationStatus status = DECLINED;
         String reason = "reason";
         registrationCredentials = createRegistrationCredentials("1234");
@@ -832,7 +833,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, "OPEN");
         RegistrationStatus status = DECLINED;
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
         String reason = "reason";
@@ -878,7 +879,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, "OPEN");
         RegistrationStatus status = DECLINED;
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
         TeamMemberDto teamMemberDto1 =
@@ -926,7 +927,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, "OPEN");
         RegistrationStatus status = DECLINED;
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
         TeamMemberDto teamMemberDto1 =
@@ -974,7 +975,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, "OPEN");
         RegistrationStatus status = DECLINED;
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
         String reason = "reason";
@@ -1005,7 +1006,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, "OPEN");
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
         TeamMemberDto teamMemberDto1 = createTeamMember(
                 userId + 2L, registration.getEventId(), TeamMemberRole.MANAGER
@@ -1038,7 +1039,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, "OPEN");
         String reason = "reason";
         registrationCredentials = createRegistrationCredentials("1234");
 
@@ -1216,7 +1217,7 @@ public class RegistrationServiceImplMockTest {
                 .build();
     }
 
-    private EventDto createEvent(long ownerId, int participantLimit) {
+    private EventDto createEvent(long ownerId, int participantLimit, String status) {
         return EventDto.builder()
                 .id(1L)
                 .name("event name " + ownerId)
@@ -1225,6 +1226,7 @@ public class RegistrationServiceImplMockTest {
                 .startDateTime(LocalDateTime.now().plusDays(ownerId))
                 .endDateTime(LocalDateTime.now().plusMonths(ownerId))
                 .participantLimit(participantLimit)
+                .registrationStatus(status)
                 .build();
     }
 
