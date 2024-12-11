@@ -29,6 +29,6 @@ public record EventDto(
 
         int participantLimit,
 
-        String registrationStatus
+        EventRegistrationStatus registrationStatus
 ) {
 }

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ms.second.team.registration.client.EventClient;
 import ru.ms.second.team.registration.dto.event.EventDto;
+import ru.ms.second.team.registration.dto.event.EventRegistrationStatus;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
 import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
@@ -228,7 +229,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     private void checkEventStatus(EventDto eventDto) {
-        if (!eventDto.registrationStatus().equals("OPEN")) {
+        if (!eventDto.registrationStatus().equals(EventRegistrationStatus.OPEN)) {
             throw new NotAuthorizedException(String.format(
                     "Registration for the event with id =" + eventDto.id() + " " + eventDto.registrationStatus()));
         }
