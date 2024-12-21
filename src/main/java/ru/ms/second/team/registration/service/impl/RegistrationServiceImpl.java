@@ -6,18 +6,20 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.ms.second.team.registration.client.EventClient;
+import ru.ms.second.team.registration.client.event.EventClient;
+import ru.ms.second.team.registration.client.notification.NotificationSender;
 import ru.ms.second.team.registration.dto.event.EventDto;
 import ru.ms.second.team.registration.dto.event.EventRegistrationStatus;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
-import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
-import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
-import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
-import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.RegistrationCount;
-import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.RegistrationCredentials;
+import ru.ms.second.team.registration.dto.registration.RegistrationNotification;
+import ru.ms.second.team.registration.dto.registration.UpdateRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.RegistrationCount;
+import ru.ms.second.team.registration.dto.registration.RegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.UpdatedRegistrationResponseDto;
 import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
@@ -47,17 +49,20 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final DeclinedRegistrationRepository declinedRegistrationRepository;
     private final RegistrationMapper registrationMapper;
     private final EventClient eventClient;
+    private final NotificationSender notificationSender;
 
     @Override
     public CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto, Long userId) {
         log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
 
-        EventDto eventDto = findEventOrThrow(userId, creationDto.eventId());
+        final EventDto eventDto = findEventOrThrow(userId, creationDto.eventId());
         checkEventStatus(eventDto);
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(generatePassword());
         registration = registrationRepository.save(registration);
+        sendNotification(eventDto, creationDto.email());
+
         return registrationMapper.toCreatedDto(registration);
     }
 
@@ -76,7 +81,6 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Override
     public RegistrationResponseDto findRegistrationById(Long id) {
         log.debug("RegistrationService: executing findRegistrationById method. Id={}", id);
-
         Registration registration = findRegistrationOrThrow(id);
         return registrationMapper.toRegistrationDto(registration);
     }
@@ -85,7 +89,6 @@ public class RegistrationServiceImpl implements RegistrationService {
     public List<RegistrationResponseDto> findAllRegistrationsByEventId(int page, int size, Long eventId) {
         log.debug("RegistrationService: executing findAllRegistrationsByEventId method. Page={}, size={}, eventId={}",
                 page, size, eventId);
-
         Page<Registration> registrations = registrationRepository.findAllByEventId(eventId, PageRequest.of(page, size));
         return registrationMapper.toRegistraionDtoList(registrations.getContent());
     }
@@ -95,7 +98,6 @@ public class RegistrationServiceImpl implements RegistrationService {
     public void deleteRegistration(RegistrationCredentials registrationCredentials) {
         log.info("RegistrationService: executing deleteRegistration method. Deleting registration id={}",
                 registrationCredentials.id());
-
         Registration registration = findRegistrationOrThrow(registrationCredentials.id());
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
         registrationRepository.deleteById(registrationCredentials.id());
@@ -233,5 +235,14 @@ public class RegistrationServiceImpl implements RegistrationService {
             throw new NotAuthorizedException(String.format(
                     "Registration for the event with id =" + eventDto.id() + " " + eventDto.registrationStatus()));
         }
+    }
+
+    private void sendNotification(EventDto eventDto, String userEmail) {
+        final RegistrationNotification registrationNotification = RegistrationNotification.builder()
+                .eventOwnerId(eventDto.ownerId())
+                .eventName(eventDto.name())
+                .participantEmail(userEmail)
+                .build();
+        notificationSender.sendNotification(registrationNotification);
     }
 }

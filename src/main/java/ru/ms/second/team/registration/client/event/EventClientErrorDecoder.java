@@ -1,4 +1,4 @@
-package ru.ms.second.team.registration.client;
+package ru.ms.second.team.registration.client.event;
 
 import feign.Response;
 import feign.codec.ErrorDecoder;
