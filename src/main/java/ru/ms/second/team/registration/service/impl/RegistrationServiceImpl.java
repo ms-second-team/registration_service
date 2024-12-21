@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.ms.second.team.registration.client.event.EventClient;
 import ru.ms.second.team.registration.client.notification.NotificationSender;
 import ru.ms.second.team.registration.dto.event.EventDto;
+import ru.ms.second.team.registration.dto.event.EventRegistrationStatus;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
 import ru.ms.second.team.registration.dto.registration.NewRegistrationDto;
@@ -55,11 +56,12 @@ public class RegistrationServiceImpl implements RegistrationService {
         log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
 
-        final EventDto event = findEventOrThrow(userId, creationDto.eventId());
+        final EventDto eventDto = findEventOrThrow(userId, creationDto.eventId());
+        checkEventStatus(eventDto);
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(generatePassword());
         registration = registrationRepository.save(registration);
-        sendNotification(event, creationDto.email());
+        sendNotification(eventDto, creationDto.email());
 
         return registrationMapper.toCreatedDto(registration);
     }
@@ -87,9 +89,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     public List<RegistrationResponseDto> findAllRegistrationsByEventId(int page, int size, Long eventId) {
         log.debug("RegistrationService: executing findAllRegistrationsByEventId method. Page={}, size={}, eventId={}",
                 page, size, eventId);
-
         Page<Registration> registrations = registrationRepository.findAllByEventId(eventId, PageRequest.of(page, size));
-
         return registrationMapper.toRegistraionDtoList(registrations.getContent());
     }
 
@@ -111,13 +111,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                                                        RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
-
-        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId())) {
-            throw new NotAuthorizedException(String.format(
-                    "User id=%d has no rights to change registration status for event id=%d",
-                    userId, registration.getEventId()));
-        }
-
+        verificationTheUserHasTheRightToChangeStatusOrThrow(userId, registration.getEventId());
         registration.setStatus(newStatus);
         if (newStatus.equals(APPROVED)) {
             checkEventParticipationLimit(userId, registration, newStatus);
@@ -132,13 +126,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                                                   RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
-
-        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId())) {
-            throw new NotAuthorizedException(String.format(
-                    "User id=%d has no rights to change registration status for event id=%d",
-                    userId, registration.getEventId()));
-        }
-
+        verificationTheUserHasTheRightToChangeStatusOrThrow(userId, registration.getEventId());
         registration.setStatus(DECLINED);
         final Registration updatedRegistration = registrationRepository.save(registration);
         saveDeclineReason(reason, updatedRegistration);
@@ -232,6 +220,21 @@ public class RegistrationServiceImpl implements RegistrationService {
         List<TeamMemberDto> teamMemberDtoList = eventClient.getTeamsByEventId(userId, eventId).getBody();
         return teamMemberDtoList.stream()
                 .anyMatch(tm -> tm.userId().equals(userId) && tm.role().equals(TeamMemberRole.MANAGER));
+    }
+
+    private void verificationTheUserHasTheRightToChangeStatusOrThrow(Long userId, Long eventId) {
+        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, eventId)) {
+            throw new NotAuthorizedException(String.format(
+                    "User id=%d has no rights to change registration status for event id=%d",
+                    userId, eventId));
+        }
+    }
+
+    private void checkEventStatus(EventDto eventDto) {
+        if (!eventDto.registrationStatus().equals(EventRegistrationStatus.OPEN)) {
+            throw new NotAuthorizedException(String.format(
+                    "Registration for the event with id =" + eventDto.id() + " " + eventDto.registrationStatus()));
+        }
     }
 
     private void sendNotification(EventDto eventDto, String userEmail) {
