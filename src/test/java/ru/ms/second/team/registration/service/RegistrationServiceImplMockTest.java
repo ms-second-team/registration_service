@@ -130,7 +130,7 @@ public class RegistrationServiceImplMockTest {
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto(registration.getId());
         Registration registrationFromMapper = createRegistration(
                 0L, "user1", "mail@mail.com", "78005553535");
-        EventDto event = createEvent(2L, 10);
+        EventDto event = createEvent(2L, 10, OPEN);
 
         when(mapper.toModel(newRegistrationDto)).thenReturn(registrationFromMapper);
         when(mapper.toCreatedDto(registration)).thenReturn(createdRegistrationResponseDto);
