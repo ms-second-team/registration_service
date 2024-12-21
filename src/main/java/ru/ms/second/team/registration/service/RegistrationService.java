@@ -1,12 +1,12 @@
 package ru.ms.second.team.registration.service;
 
-import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
-import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
-import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
-import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.RegistrationCount;
-import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.RegistrationCredentials;
+import ru.ms.second.team.registration.dto.registration.UpdateRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.RegistrationCount;
+import ru.ms.second.team.registration.dto.registration.RegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.UpdatedRegistrationResponseDto;
 import ru.ms.second.team.registration.model.RegistrationStatus;
 
 import java.util.List;

@@ -6,17 +6,19 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.ms.second.team.registration.client.EventClient;
+import ru.ms.second.team.registration.client.event.EventClient;
+import ru.ms.second.team.registration.client.notification.NotificationSender;
 import ru.ms.second.team.registration.dto.event.EventDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
-import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
-import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
-import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
-import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.RegistrationCount;
-import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.RegistrationCredentials;
+import ru.ms.second.team.registration.dto.registration.RegistrationNotification;
+import ru.ms.second.team.registration.dto.registration.UpdateRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.RegistrationCount;
+import ru.ms.second.team.registration.dto.registration.RegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.UpdatedRegistrationResponseDto;
 import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
@@ -46,16 +48,18 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final DeclinedRegistrationRepository declinedRegistrationRepository;
     private final RegistrationMapper registrationMapper;
     private final EventClient eventClient;
+    private final NotificationSender notificationSender;
 
     @Override
     public CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto, Long userId) {
         log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
 
-        findEventOrThrow(userId, creationDto.eventId());
+        final EventDto event = findEventOrThrow(userId, creationDto.eventId());
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(generatePassword());
         registration = registrationRepository.save(registration);
+        sendNotification(event, creationDto.email());
 
         return registrationMapper.toCreatedDto(registration);
     }
@@ -228,5 +232,14 @@ public class RegistrationServiceImpl implements RegistrationService {
         List<TeamMemberDto> teamMemberDtoList = eventClient.getTeamsByEventId(userId, eventId).getBody();
         return teamMemberDtoList.stream()
                 .anyMatch(tm -> tm.userId().equals(userId) && tm.role().equals(TeamMemberRole.MANAGER));
+    }
+
+    private void sendNotification(EventDto eventDto, String userEmail) {
+        final RegistrationNotification registrationNotification = RegistrationNotification.builder()
+                .eventOwnerId(eventDto.ownerId())
+                .eventName(eventDto.name())
+                .participantEmail(userEmail)
+                .build();
+        notificationSender.sendNotification(registrationNotification);
     }
 }

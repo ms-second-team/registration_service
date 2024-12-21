@@ -15,17 +15,19 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import ru.ms.second.team.registration.client.EventClient;
+import ru.ms.second.team.registration.client.event.EventClient;
+import ru.ms.second.team.registration.client.notification.NotificationSender;
 import ru.ms.second.team.registration.dto.event.EventDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
-import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
-import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
-import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
-import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.RegistrationCount;
-import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.RegistrationCredentials;
+import ru.ms.second.team.registration.dto.registration.RegistrationNotification;
+import ru.ms.second.team.registration.dto.registration.UpdateRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.RegistrationCount;
+import ru.ms.second.team.registration.dto.registration.RegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.UpdatedRegistrationResponseDto;
 import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
@@ -69,6 +71,8 @@ public class RegistrationServiceImplMockTest {
     private RegistrationMapper mapper;
     @Mock
     private EventClient eventClient;
+    @Mock
+    private NotificationSender notificationSender;
 
     private UpdateRegistrationDto updateRegistrationDto;
     private UpdatedRegistrationResponseDto updatedRegistrationResponseDto;
@@ -79,6 +83,8 @@ public class RegistrationServiceImplMockTest {
     private ArgumentCaptor<Registration> captor;
     @Captor
     private ArgumentCaptor<DeclinedRegistration> declinedRegistrationCaptor;
+    @Captor
+    private ArgumentCaptor<RegistrationNotification> registrationNotificationCaptor;
     private Long userId;
 
     @BeforeEach
@@ -109,6 +115,37 @@ public class RegistrationServiceImplMockTest {
 
         verify(mapper, times(1)).toModel(newRegistrationDto);
         verify(mapper, times(1)).toCreatedDto(registration);
+        verify(registrationRepository, times(1)).save(registrationFromMapper);
+    }
+
+    @Test
+    @DisplayName("Created registration, check notification")
+    void createRegistration_shouldSendNotification() {
+        NewRegistrationDto newRegistrationDto = createNewRegistrationDto();
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto(registration.getId());
+        Registration registrationFromMapper = createRegistration(
+                0L, "user1", "mail@mail.com", "78005553535");
+        EventDto event = createEvent(2L, 10);
+
+        when(mapper.toModel(newRegistrationDto)).thenReturn(registrationFromMapper);
+        when(mapper.toCreatedDto(registration)).thenReturn(createdRegistrationResponseDto);
+        when(registrationRepository.save(registrationFromMapper)).thenReturn(registration);
+        when(eventClient.getEventById(1L, newRegistrationDto.eventId()))
+                .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
+        registrationService.createRegistration(newRegistrationDto, 1L);
+
+        verify(notificationSender).sendNotification(registrationNotificationCaptor.capture());
+        RegistrationNotification notification = registrationNotificationCaptor.getValue();
+
+        assertEquals(event.ownerId(), notification.eventOwnerId());
+        assertEquals(event.name(), notification.eventName());
+        assertEquals(newRegistrationDto.email(), notification.participantEmail());
+
+        verify(mapper, times(1)).toModel(newRegistrationDto);
+        verify(mapper, times(1)).toCreatedDto(registration);
+        verify(notificationSender, times(1)).sendNotification(notification);
         verify(registrationRepository, times(1)).save(registrationFromMapper);
     }
 
