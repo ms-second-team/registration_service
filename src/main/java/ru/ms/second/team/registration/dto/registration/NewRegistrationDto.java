@@ -1,4 +1,4 @@
-package ru.ms.second.team.registration.dto.request;
+package ru.ms.second.team.registration.dto.registration;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
