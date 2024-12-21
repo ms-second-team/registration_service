@@ -1,4 +1,4 @@
-package ru.ms.second.team.registration.dto.response;
+package ru.ms.second.team.registration.dto.registration.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;

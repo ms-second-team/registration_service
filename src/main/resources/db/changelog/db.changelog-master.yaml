@@ -37,5 +37,5 @@ databaseChangeLog:
       changes:
         - sqlFile:
             dbms: postgresql
-            path: changeset/v5_add_user_id_to_registrations.sql
+            path: changeset/v5_add_author_id_to_registrations.sql
             relativeToChangelogFile: true

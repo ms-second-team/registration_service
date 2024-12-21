@@ -20,13 +20,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.ms.second.team.registration.dto.event.EventDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
-import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
-import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
-import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
-import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.RegistrationCount;
-import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.request.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.request.RegistrationCredentials;
+import ru.ms.second.team.registration.dto.registration.request.UpdateRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.response.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.response.RegistrationCount;
+import ru.ms.second.team.registration.dto.registration.response.RegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.response.UpdatedRegistrationResponseDto;
 import ru.ms.second.team.registration.dto.user.UserDto;
 import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
@@ -46,8 +46,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static ru.ms.second.team.registration.model.RegistrationStatus.APPROVED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.DECLINED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.PENDING;
@@ -83,7 +82,7 @@ public class RegistrationServiceImplIntegrateTest {
 
     @Test
     @SneakyThrows
-    void createRegistration() {
+    void createRegistrationByNewUser_Success() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0);
@@ -104,14 +103,67 @@ public class RegistrationServiceImplIntegrateTest {
         RegistrationResponseDto registration = registrationService.findRegistrationById(result.id());
 
         assertThat(result.id(), notNullValue());
-        assertEquals(4, result.password().length());
-        assertThat(registration.userId(), notNullValue());
-        assertEquals(userDto.id(), registration.userId());
+        assertEquals(8, result.password().length());
+        assertThat(registration.authorId(), notNullValue());
+        assertEquals(userDto.id(), registration.authorId());
     }
 
     @Test
     @SneakyThrows
-    void createRegistrationWhenEventNotFound_ShouldThrowNotFoundException() {
+    void createRegistrationByExistingUser_Success() {
+        NewRegistrationDto registrationDto = createNewRegistrationDtoWithPassword();
+        EventDto eventDto = createEvent(userId, 0);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
+
+        stubFor(post(urlEqualTo("/users/email"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.OK.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
+
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(registrationDto);
+        RegistrationResponseDto registration = registrationService.findRegistrationById(result.id());
+
+        assertThat(result.id(), notNullValue());
+        assertEquals(registrationDto.userPassword(), result.password());
+        assertThat(registration.authorId(), notNullValue());
+        assertEquals(userDto.id(), registration.authorId());
+    }
+
+    @Test
+    @SneakyThrows
+    void createRegistrationByExistingUser_FailPasswordIncorrect() {
+        NewRegistrationDto registrationDto = createNewRegistrationDtoWithPassword();
+
+        stubFor(post(urlEqualTo("/users/email"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withStatus(HttpStatus.BAD_REQUEST.value())));
+
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.createRegistration(registrationDto));
+    }
+
+    @Test
+    @SneakyThrows
+    void createRegistrationByExistingUser_FailEmailNotFound() {
+        NewRegistrationDto registrationDto = createNewRegistrationDtoWithPassword();
+
+        stubFor(post(urlEqualTo("/users/email"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withStatus(HttpStatus.NOT_FOUND.value())));
+
+        assertThrows(NotFoundException.class, () -> registrationService.createRegistration(registrationDto));
+    }
+
+    @Test
+    @SneakyThrows
+    void createRegistrationByNewUserWhenEventNotFound_ShouldThrowNotFoundException() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
@@ -469,12 +521,6 @@ public class RegistrationServiceImplIntegrateTest {
 
         RegistrationCredentials deleteDto =
                 createRegistrationCredentials(registration.id(), registration.password());
-
-        stubFor(get(urlEqualTo("/users/" + userDto.id()))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
-                        .withBody(objectMapper.writeValueAsString(userDto))
-                        .withStatus(HttpStatus.OK.value())));
 
         registrationService.deleteRegistration(deleteDto);
 
@@ -1435,6 +1481,16 @@ public class RegistrationServiceImplIntegrateTest {
                 .eventId(eventId)
                 .phone(phone)
                 .username(username)
+                .build();
+    }
+
+    private NewRegistrationDto createNewRegistrationDtoWithPassword() {
+        return NewRegistrationDto.builder()
+                .email("mail@mail.com")
+                .eventId(1L)
+                .phone("78005553535")
+                .username("user1")
+                .userPassword("8Symbols!")
                 .build();
     }
 

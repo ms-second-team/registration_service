@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
-import ru.ms.second.team.registration.exception.exceptions.UserClientBadRequestException;
 import ru.ms.second.team.registration.exception.model.ErrorResponse;
 
 @RestControllerAdvice
@@ -53,14 +52,14 @@ public class ErrorHandler {
         return new ErrorResponse(HttpStatus.BAD_REQUEST.toString(), e.getLocalizedMessage());
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
         log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
         return new ErrorResponse(HttpStatus.BAD_REQUEST.getReasonPhrase(), "Unknown status: " + e.getValue());
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleIllegalArgumentException(IllegalArgumentException e) {
         log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
@@ -70,14 +69,6 @@ public class ErrorHandler {
     @ExceptionHandler(MissingRequestHeaderException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleMissingRequestHeaderException(MissingRequestHeaderException e) {
-        log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
-        return new ErrorResponse(
-                HttpStatus.BAD_REQUEST.getReasonPhrase(), e.getLocalizedMessage());
-    }
-
-    @ExceptionHandler(UserClientBadRequestException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleUserClientBadRequestException(UserClientBadRequestException e) {
         log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
         return new ErrorResponse(
                 HttpStatus.BAD_REQUEST.getReasonPhrase(), e.getLocalizedMessage());

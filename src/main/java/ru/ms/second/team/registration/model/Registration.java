@@ -34,7 +34,7 @@ public class Registration {
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-    @Column(name = "user_id")
-    Long userId;
+    @Column(name = "author_id")
+    Long authorId;
 
 }

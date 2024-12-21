@@ -4,5 +4,5 @@ CREATE TABLE IF NOT EXISTS registrations (
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(11) NOT NULL,
     event_id BIGINT NOT NULL,
-    password VARCHAR(4) NOT NULL
+    password VARCHAR(32) NOT NULL
 );

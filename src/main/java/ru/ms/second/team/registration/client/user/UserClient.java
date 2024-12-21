@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import ru.ms.second.team.registration.config.UserClientConfig;
 import ru.ms.second.team.registration.dto.user.NewUserRequest;
+import ru.ms.second.team.registration.dto.user.UserCredentials;
 import ru.ms.second.team.registration.dto.user.UserDto;
 
 @FeignClient(name = "userClient", url = "${app.user-service.url}", configuration = UserClientConfig.class)
@@ -19,6 +20,9 @@ public interface UserClient {
     @GetMapping("/users/{id}")
     UserDto findUserByUserId(@RequestHeader("X-User-Id") Long userId,
                              @PathVariable Long id);
+
+    @PostMapping("/users/email")
+    UserDto findUserByEmail(@RequestBody UserCredentials userCredentials);
 
     @DeleteMapping("/users")
     void deleteUser(@RequestHeader("X-User-Id") Long userId,

@@ -1,8 +1,9 @@
-package ru.ms.second.team.registration.dto.request;
+package ru.ms.second.team.registration.dto.registration.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.Builder;
+import ru.ms.second.team.registration.util.StrongPassword;
 
 @Builder
 @Schema(description = "Registration updateRegistration data")
@@ -14,7 +15,8 @@ public record UpdateRegistrationDto(
         Long id,
 
         @NotBlank
-        @Size(min = 4, max = 4, message = "Password must contain 4 symbols")
+        @Size(min = 8, message = "Password must contain at least 8 symbols")
+        @StrongPassword
         @Schema(description = "Registration password")
         String password,
 
