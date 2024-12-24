@@ -21,7 +21,7 @@ public interface RegistrationService {
 
     List<RegistrationResponseDto> findAllRegistrationsByEventId(int page, int size, Long id);
 
-    void deleteRegistration(RegistrationCredentials deleteDto);
+    void deleteRegistration(Long userId, RegistrationCredentials deleteDto);
 
     RegistrationStatus updateRegistrationStatus(Long userId, Long registrationId, RegistrationStatus newStatus,
                                                 RegistrationCredentials registrationCredentials);
