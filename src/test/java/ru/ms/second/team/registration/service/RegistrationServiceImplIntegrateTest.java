@@ -617,7 +617,7 @@ public class RegistrationServiceImplIntegrateTest {
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
         RegistrationStatus newStatus = APPROVED;
 
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto)))
@@ -649,7 +649,7 @@ public class RegistrationServiceImplIntegrateTest {
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
         RegistrationStatus newStatus = APPROVED;
 
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()+"/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto)))
@@ -681,7 +681,7 @@ public class RegistrationServiceImplIntegrateTest {
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
         RegistrationStatus newStatus = APPROVED;
 
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto)))
@@ -717,7 +717,7 @@ public class RegistrationServiceImplIntegrateTest {
                 createTeamMember(userId + 2L, registrationDto.eventId(), TeamMemberRole.MANAGER);
         RegistrationStatus newStatus = APPROVED;
 
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto, teamMemberDto1)))
@@ -750,7 +750,7 @@ public class RegistrationServiceImplIntegrateTest {
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         RegistrationStatus newStatus = APPROVED;
 
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(new ArrayList<>()))
@@ -976,7 +976,7 @@ public class RegistrationServiceImplIntegrateTest {
         CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
 
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto)))
@@ -1010,7 +1010,7 @@ public class RegistrationServiceImplIntegrateTest {
         TeamMemberDto teamMemberDto1 =
                 createTeamMember(userId + 2L, registrationDto.eventId(), TeamMemberRole.MEMBER);
 
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto, teamMemberDto1)))
@@ -1042,7 +1042,7 @@ public class RegistrationServiceImplIntegrateTest {
         CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
 
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto)))
@@ -1075,7 +1075,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
 
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(new ArrayList<>()))
@@ -1111,7 +1111,7 @@ public class RegistrationServiceImplIntegrateTest {
         TeamMemberDto teamMemberDto1 =
                 createTeamMember(userId + 2L, registrationDto.eventId(), TeamMemberRole.MANAGER);
 
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto, teamMemberDto1)))
