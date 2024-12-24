@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.SneakyThrows;
 import org.apache.http.entity.ContentType;
-import org.junit.Assert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -431,7 +430,7 @@ public class RegistrationServiceImplIntegrateTest {
     }
 
     @Test
-    @DisplayName("Delete registration: throws NotFoundException (successful deletion) when registration is approved and event has not started")
+    @DisplayName("Delete registration when registration is approved and event has not started")
     @SneakyThrows
     void deleteRegistration_whenRegistrationApprovedAndEventNotStart_shouldThrowNotFoundException() {
         Long userId = 1L;
@@ -457,14 +456,14 @@ public class RegistrationServiceImplIntegrateTest {
 
         registrationService.deleteRegistration(userId, deleteDto);
 
-        NotFoundException ex = Assert.assertThrows(NotFoundException.class,
+        NotFoundException ex = assertThrows(NotFoundException.class,
                 () -> registrationService.findRegistrationById(registration.id()));
 
         assertThat(ex.getMessage(), is("Registration with id=" + registration.id() + " was not found"));
     }
 
     @Test
-    @DisplayName("Delete registration: throws ValidationException (unsuccessful deletion) when registration is approved and event has started")
+    @DisplayName("Delete registration when registration is approved and event has started")
     @SneakyThrows
     void deleteRegistration_whenRegistrationApprovedAndEventStart_shouldThrowValidationException() {
         Long userId = 1L;
@@ -472,7 +471,7 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", eventId);
 
-        EventDto eventDto = createStartedEvent(userId, 0, EventRegistrationStatus.OPEN);
+        EventDto eventDto = createNewEvent(userId, 0, EventRegistrationStatus.OPEN, LocalDateTime.now().minusDays(userId), LocalDateTime.now().plusMonths(userId));
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -488,14 +487,14 @@ public class RegistrationServiceImplIntegrateTest {
         RegistrationCredentials deleteDto =
                 createRegistrationCredentials(registration.id(), registration.password());
 
-        ValidationException ex = Assert.assertThrows(ValidationException.class,
+        ValidationException ex = assertThrows(ValidationException.class,
                 () -> registrationService.deleteRegistration(userId, deleteDto));
 
         assertThat(ex.getMessage(), is("You cannot delete an approved registration (id = " + registration.id() + ") for an event (id = " + eventId + ") that has started"));
     }
 
     @Test
-    @DisplayName("Delete registration: throws NotFoundException (successful deletion) when registration is not approved and event has started")
+    @DisplayName("Delete registration when registration is not approved and event has started")
     @SneakyThrows
     void deleteRegistration_whenRegistrationNotApprovedAndEventStart_shouldThrowNotFoundException() {
         Long userId = 1L;
@@ -503,7 +502,7 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", eventId);
 
-        EventDto eventDto = createStartedEvent(userId, 0, EventRegistrationStatus.OPEN);
+        EventDto eventDto = createNewEvent(userId, 0, EventRegistrationStatus.OPEN, LocalDateTime.now().minusDays(userId), LocalDateTime.now().plusMonths(userId));
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -521,14 +520,14 @@ public class RegistrationServiceImplIntegrateTest {
 
         registrationService.deleteRegistration(userId, deleteDto);
 
-        NotFoundException ex = Assert.assertThrows(NotFoundException.class,
+        NotFoundException ex = assertThrows(NotFoundException.class,
                 () -> registrationService.findRegistrationById(registration.id()));
 
         assertThat(ex.getMessage(), is("Registration with id=" + registration.id() + " was not found"));
     }
 
     @Test
-    @DisplayName("Delete registration: throws ValidationException (unsuccessful deletion) when registration is approved and event has ended")
+    @DisplayName("Delete registration when registration is approved and event has ended")
     @SneakyThrows
     void deleteRegistration_whenRegistrationApprovedAndEventEnded_shouldThrowValidationException() {
         Long userId = 1L;
@@ -536,7 +535,7 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", eventId);
 
-        EventDto eventDto = createEndedEvent(userId, 0, EventRegistrationStatus.OPEN);
+        EventDto eventDto = createNewEvent(userId, 0, EventRegistrationStatus.OPEN, LocalDateTime.now().minusMonths(userId), LocalDateTime.now().minusDays(userId));
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
@@ -552,7 +551,7 @@ public class RegistrationServiceImplIntegrateTest {
         RegistrationCredentials deleteDto =
                 createRegistrationCredentials(registration.id(), registration.password());
 
-        ValidationException ex = Assert.assertThrows(ValidationException.class,
+        ValidationException ex = assertThrows(ValidationException.class,
                 () -> registrationService.deleteRegistration(userId, deleteDto));
 
         assertThat(ex.getMessage(), is("You cannot delete an approved registration (id = " + registration.id() + ") for an event (id = " + eventId + ") that has started"));
@@ -649,7 +648,7 @@ public class RegistrationServiceImplIntegrateTest {
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
         RegistrationStatus newStatus = APPROVED;
 
-        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()+"/teams"))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto)))
@@ -1380,39 +1379,17 @@ public class RegistrationServiceImplIntegrateTest {
     }
 
     private EventDto createEvent(long ownerId, int participantLimit, EventRegistrationStatus status) {
-        return EventDto.builder()
-                .id(1L)
-                .name("event name " + ownerId)
-                .description("event description " + ownerId)
-                .ownerId(ownerId)
-                .startDateTime(LocalDateTime.now().plusDays(ownerId))
-                .endDateTime(LocalDateTime.now().plusMonths(ownerId))
-                .participantLimit(participantLimit)
-                .registrationStatus(status)
-                .build();
+        return createNewEvent(ownerId, participantLimit, status, LocalDateTime.now().plusDays(ownerId), LocalDateTime.now().plusMonths(ownerId));
     }
 
-    private EventDto createStartedEvent(long ownerId, int participantLimit, EventRegistrationStatus status) {
+    private EventDto createNewEvent(long ownerId, int participantLimit, EventRegistrationStatus status, LocalDateTime startDate, LocalDateTime endDate) {
         return EventDto.builder()
                 .id(1L)
                 .name("event name " + ownerId)
                 .description("event description " + ownerId)
                 .ownerId(ownerId)
-                .startDateTime(LocalDateTime.now().minusDays(ownerId))
-                .endDateTime(LocalDateTime.now().plusMonths(ownerId))
-                .participantLimit(participantLimit)
-                .registrationStatus(status)
-                .build();
-    }
-
-    private EventDto createEndedEvent(long ownerId, int participantLimit, EventRegistrationStatus status) {
-        return EventDto.builder()
-                .id(1L)
-                .name("event name " + ownerId)
-                .description("event description " + ownerId)
-                .ownerId(ownerId)
-                .startDateTime(LocalDateTime.now().minusMonths(ownerId))
-                .endDateTime(LocalDateTime.now().minusDays(ownerId))
+                .startDateTime(startDate)
+                .endDateTime(endDate)
                 .participantLimit(participantLimit)
                 .registrationStatus(status)
                 .build();
