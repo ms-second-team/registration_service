@@ -100,7 +100,9 @@ public class RegistrationServiceImpl implements RegistrationService {
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
         registrationRepository.deleteById(registrationCredentials.id());
         declinedRegistrationRepository.deleteAllByRegistrationId(registrationCredentials.id());
-        updateStatusOfClosestWaitingRegistration(registration);
+        if (APPROVED.equals(registration.getStatus())) {
+            updateStatusOfClosestWaitingRegistration(registration);
+        }
     }
 
     @Override
@@ -166,8 +168,10 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     private void updateStatusOfClosestWaitingRegistration(Registration registration) {
-        if (registration.getStatus().equals(APPROVED)) {
-            Registration closestRegistration = registrationRepository.findEarliestWaitingRegistration();
+        final List<Registration> waitingRegistrationsList = registrationRepository
+                .searchRegistrations(List.of(WAITING), registration.getEventId());
+        if (!waitingRegistrationsList.isEmpty()) {
+            Registration closestRegistration = waitingRegistrationsList.getFirst();
             closestRegistration.setStatus(PENDING);
             registrationRepository.save(closestRegistration);
         }
