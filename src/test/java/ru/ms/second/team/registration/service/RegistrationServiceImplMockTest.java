@@ -48,6 +48,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -1137,6 +1138,48 @@ public class RegistrationServiceImplMockTest {
 
         verify(registrationRepository, times(1)).getStatusToNumberOfRegistrationsForEvent(eventId);
     }
+
+    @Test
+    @DisplayName("Delete approved registration")
+    void deleteRegistration_whenDeletingApprovedRegistration_ShouldInvokeSearchMethod() {
+        registrationCredentials = createRegistrationCredentials("1234");
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        registration.setStatus(APPROVED);
+
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
+
+        registrationService.deleteRegistration(registrationCredentials);
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).deleteById(registrationCredentials.id());
+        verify(declinedRegistrationRepository, times(1))
+                .deleteAllByRegistrationId(registrationCredentials.id());
+        verify(registrationRepository, times(1))
+                .searchRegistrations(Collections.singletonList(WAITING), registration.getEventId());
+    }
+
+    @Test
+    @DisplayName("Deleting not approved registration")
+    void deleteRegistration_whenDeletingNotApprovedRegistration_ShouldNotInvokeSearchMethod() {
+        registrationCredentials = createRegistrationCredentials("1234");
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
+
+        registrationService.deleteRegistration(registrationCredentials);
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).deleteById(registrationCredentials.id());
+        verify(declinedRegistrationRepository, times(1))
+                .deleteAllByRegistrationId(registrationCredentials.id());
+        verify(registrationRepository, never())
+                .searchRegistrations(any(), anyLong());
+    }
+
 
     private NewRegistrationDto createNewRegistrationDto() {
         return NewRegistrationDto.builder()
