@@ -1147,10 +1147,14 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
         registration.setStatus(APPROVED);
+        EventDto event = createEvent(userId, 10, OPEN);
 
-        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(ResponseEntity.of(Optional.of(event)));
 
-        registrationService.deleteRegistration(registrationCredentials);
+        registrationService.deleteRegistration(userId, registrationCredentials);
 
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).deleteById(registrationCredentials.id());
@@ -1158,6 +1162,8 @@ public class RegistrationServiceImplMockTest {
                 .deleteAllByRegistrationId(registrationCredentials.id());
         verify(registrationRepository, times(1))
                 .searchRegistrations(Collections.singletonList(WAITING), registration.getEventId());
+        verify(eventClient, times(1))
+                .getEventById(userId, registration.getEventId());
     }
 
     @Test
@@ -1170,7 +1176,7 @@ public class RegistrationServiceImplMockTest {
 
         when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
 
-        registrationService.deleteRegistration(registrationCredentials);
+        registrationService.deleteRegistration(userId, registrationCredentials);
 
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).deleteById(registrationCredentials.id());

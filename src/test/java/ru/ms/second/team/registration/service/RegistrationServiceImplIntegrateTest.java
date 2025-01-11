@@ -1180,7 +1180,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         assertEquals(WAITING, result);
 
-        registrationService.deleteRegistration(credentials);
+        registrationService.deleteRegistration(userId, credentials);
 
         RegistrationResponseDto closestRegistration = registrationService.findRegistrationById(createdRegistration2.id());
 
@@ -1225,7 +1225,7 @@ public class RegistrationServiceImplIntegrateTest {
         registrationService.updateRegistrationStatus(userId, createdRegistration3.id(),
                 approved, credentials3);
 
-        registrationService.deleteRegistration(credentials);
+        registrationService.deleteRegistration(userId, credentials);
 
         RegistrationResponseDto closestRegistration = registrationService.findRegistrationById(createdRegistration2.id());
 
@@ -1303,7 +1303,7 @@ public class RegistrationServiceImplIntegrateTest {
     }
 
     private void stubForTeamMembersOkResponse(NewRegistrationDto registrationDto, List<TeamMemberDto> teamMembers) throws JsonProcessingException {
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(teamMembers))
