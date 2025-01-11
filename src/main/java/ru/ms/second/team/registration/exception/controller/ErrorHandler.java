@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
+import ru.ms.second.team.registration.exception.exceptions.ValidationException;
 import ru.ms.second.team.registration.exception.model.ErrorResponse;
 
 @RestControllerAdvice
@@ -46,7 +46,7 @@ public class ErrorHandler {
         return new ErrorResponse(HttpStatus.CONFLICT.toString(), e.getLocalizedMessage());
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ExceptionHandler({ValidationException.class, MethodArgumentNotValidException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleMethodArgumentNotValidException(final MethodArgumentNotValidException e) {
         log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());

@@ -328,7 +328,7 @@ public class RegistrationServiceImplMockTest {
 
         when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
 
-        registrationService.deleteRegistration(registrationCredentials);
+        registrationService.deleteRegistration(userId, registrationCredentials);
 
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).deleteById(registrationCredentials.id());
@@ -346,7 +346,7 @@ public class RegistrationServiceImplMockTest {
 
         when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
 
-        assertThrows(PasswordIncorrectException.class, () -> registrationService.deleteRegistration(registrationCredentials));
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.deleteRegistration(userId, registrationCredentials));
 
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, never()).deleteById(registrationCredentials.id());
@@ -360,7 +360,7 @@ public class RegistrationServiceImplMockTest {
 
         when(registrationRepository.findById(registrationCredentials.id())).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> registrationService.deleteRegistration(registrationCredentials));
+        assertThrows(NotFoundException.class, () -> registrationService.deleteRegistration(userId, registrationCredentials));
 
         verify(registrationRepository, times(1)).findById(registrationCredentials.id());
         verify(registrationRepository, never()).deleteById(registrationCredentials.id());
