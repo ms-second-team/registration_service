@@ -21,6 +21,7 @@ import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDt
 import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
+import ru.ms.second.team.registration.exception.exceptions.ValidationException;
 import ru.ms.second.team.registration.mapper.RegistrationMapper;
 import ru.ms.second.team.registration.model.DeclinedRegistration;
 import ru.ms.second.team.registration.model.Registration;
@@ -30,6 +31,7 @@ import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.RegistrationService;
 
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -92,12 +94,19 @@ public class RegistrationServiceImpl implements RegistrationService {
 
     @Override
     @Transactional
-    public void deleteRegistration(RegistrationCredentials registrationCredentials) {
+    public void deleteRegistration(Long userId, RegistrationCredentials registrationCredentials) {
         log.info("RegistrationService: executing deleteRegistration method. Deleting registration id={}",
                 registrationCredentials.id());
 
         Registration registration = findRegistrationOrThrow(registrationCredentials.id());
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
+        if (registration.getStatus().equals(APPROVED)
+                && isEventStarted(userId, registration.getEventId())) {
+            throw new ValidationException(
+                    String.format("You cannot delete an approved registration (id = %d) for an event (id = %d) that has started",
+                            registration.getId(),
+                            registration.getEventId()));
+        }
         registrationRepository.deleteById(registrationCredentials.id());
         declinedRegistrationRepository.deleteAllByRegistrationId(registrationCredentials.id());
         updateStatusOfClosestWaitingRegistration(registration);
@@ -168,8 +177,10 @@ public class RegistrationServiceImpl implements RegistrationService {
     private void updateStatusOfClosestWaitingRegistration(Registration registration) {
         if (registration.getStatus().equals(APPROVED)) {
             Registration closestRegistration = registrationRepository.findEarliestWaitingRegistration();
-            closestRegistration.setStatus(PENDING);
-            registrationRepository.save(closestRegistration);
+            if (closestRegistration != null) {
+                closestRegistration.setStatus(PENDING);
+                registrationRepository.save(closestRegistration);
+            }
         }
     }
 
@@ -233,5 +244,10 @@ public class RegistrationServiceImpl implements RegistrationService {
             throw new NotAuthorizedException(String.format(
                     "Registration for the event with id =" + eventDto.id() + " " + eventDto.registrationStatus()));
         }
+    }
+
+    private boolean isEventStarted(Long userId, Long eventId) {
+        final EventDto event = eventClient.getEventById(userId, eventId).getBody();
+        return event.startDateTime().isBefore(LocalDateTime.now());
     }
 }

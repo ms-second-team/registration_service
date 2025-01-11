@@ -510,13 +510,15 @@ public class RegistrationControllerTest {
     @DisplayName("Registration deleted successfully")
     void deleteRegistrationById() {
         registrationCredentials = createRegistrationCredentials(1L, "1234");
+        Long userId = 1L;
         mvc.perform(delete("/registrations")
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNoContent());
-        verify(registrationService, times(1)).deleteRegistration(registrationCredentials);
+        verify(registrationService, times(1)).deleteRegistration(userId, registrationCredentials);
     }
 
     @Test
@@ -524,13 +526,15 @@ public class RegistrationControllerTest {
     @DisplayName("Registration failed to deleteRegistration due to non positive id")
     void deleteRegistrationByIdNonPositiveId() {
         registrationCredentials = createRegistrationCredentials(0L, "1234");
+        Long userId = 1L;
         mvc.perform(delete("/registrations")
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).deleteRegistration(registrationCredentials);
+        verify(registrationService, never()).deleteRegistration(userId, registrationCredentials);
     }
 
     @Test
@@ -538,13 +542,15 @@ public class RegistrationControllerTest {
     @DisplayName("Registration failed to deleteRegistration due to too short password")
     void deleteRegistrationFailShortPassword() {
         registrationCredentials = createRegistrationCredentials(1L, "123");
+        Long userId = 1L;
         mvc.perform(delete("/registrations")
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).deleteRegistration(registrationCredentials);
+        verify(registrationService, never()).deleteRegistration(userId, registrationCredentials);
     }
 
     @Test
@@ -552,13 +558,15 @@ public class RegistrationControllerTest {
     @DisplayName("Registration failed to deleteRegistration due to too long password")
     void deleteRegistrationFailLongPassword() {
         registrationCredentials = createRegistrationCredentials(1L, "12345");
+        Long userId = 1L;
         mvc.perform(delete("/registrations")
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).deleteRegistration(registrationCredentials);
+        verify(registrationService, never()).deleteRegistration(userId, registrationCredentials);
     }
 
     @Test
