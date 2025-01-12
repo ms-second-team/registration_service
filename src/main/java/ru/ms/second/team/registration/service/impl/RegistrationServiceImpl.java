@@ -100,16 +100,12 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         Registration registration = findRegistrationOrThrow(registrationCredentials.id());
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
-        if (registration.getStatus().equals(APPROVED)
-                && isEventStarted(userId, registration.getEventId())) {
-            throw new ValidationException(
-                    String.format("You cannot delete an approved registration (id = %d) for an event (id = %d) that has started",
-                            registration.getId(),
-                            registration.getEventId()));
-        }
+        checkIfRegistrationCanBeDeleted(userId, registration);
         registrationRepository.deleteById(registrationCredentials.id());
         declinedRegistrationRepository.deleteAllByRegistrationId(registrationCredentials.id());
-        updateStatusOfClosestWaitingRegistration(registration);
+        if (APPROVED.equals(registration.getStatus())) {
+            updateStatusOfClosestWaitingRegistration(registration);
+        }
     }
 
     @Override
@@ -175,12 +171,12 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     private void updateStatusOfClosestWaitingRegistration(Registration registration) {
-        if (registration.getStatus().equals(APPROVED)) {
-            Registration closestRegistration = registrationRepository.findEarliestWaitingRegistration();
-            if (closestRegistration != null) {
-                closestRegistration.setStatus(PENDING);
-                registrationRepository.save(closestRegistration);
-            }
+        final List<Registration> waitingRegistrationsList = registrationRepository
+                .searchRegistrations(List.of(WAITING), registration.getEventId());
+        if (!waitingRegistrationsList.isEmpty()) {
+            Registration closestRegistration = waitingRegistrationsList.getFirst();
+            closestRegistration.setStatus(PENDING);
+            registrationRepository.save(closestRegistration);
         }
     }
 
@@ -249,5 +245,14 @@ public class RegistrationServiceImpl implements RegistrationService {
     private boolean isEventStarted(Long userId, Long eventId) {
         final EventDto event = eventClient.getEventById(userId, eventId).getBody();
         return event.startDateTime().isBefore(LocalDateTime.now());
+    }
+
+    private void checkIfRegistrationCanBeDeleted(Long userId, Registration registration) {
+        if (registration.getStatus().equals(APPROVED) && isEventStarted(userId, registration.getEventId())) {
+            throw new ValidationException(
+                    String.format("You cannot delete an approved registration (id = %d) for an event (id = %d) that has started",
+                            registration.getId(),
+                            registration.getEventId()));
+        }
     }
 }
