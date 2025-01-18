@@ -13,9 +13,6 @@ import java.util.List;
 public interface JpaRegistrationRepository extends JpaRepository<Registration, Long>, JdbcRegistrationRepository {
     Page<Registration> findAllByEventId(Long eventId, Pageable pageable);
 
-    @Query("SELECT r FROM Registration r WHERE r.status = 'APPROVED' ORDER BY r.createdAt ASC")
-    Registration findEarliestWaitingRegistration();
-
     @Query("SELECT r FROM Registration r WHERE r.status IN (:statuses) AND r.eventId = :eventId ORDER BY r.createdAt ASC ")
     List<Registration> searchRegistrations(List<RegistrationStatus> statuses, Long eventId);
 }
