@@ -76,7 +76,8 @@ public class RegistrationControllerTest {
                         .content(mapper.writeValueAsString(newRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("X-User-Id", userId))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.password", is(createdRegistrationResponseDto.password())));
@@ -97,7 +98,8 @@ public class RegistrationControllerTest {
                         .content(mapper.writeValueAsString(newRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("X-User-Id", userId))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.password", is(createdRegistrationResponseDto.password())));
@@ -443,111 +445,6 @@ public class RegistrationControllerTest {
 
     @Test
     @SneakyThrows
-    @DisplayName("Update failed due to too short password")
-    void updateRegistrationUsernameFailShortPassword() {
-        updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 1L, "7Symbo!");
-        mvc.perform(patch("/registrations")
-                        .content(mapper.writeValueAsString(updateRegistrationDto))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Update failed due to blank password")
-    void updateRegistrationUsernameFailBlankPassword() {
-        updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 1L, "        ");
-        mvc.perform(patch("/registrations")
-                        .content(mapper.writeValueAsString(updateRegistrationDto))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Update failed because password does not contain special char")
-    void updateRegistrationUsernameFailInvalidPassword_NoSpecialChar() {
-        updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 1L, "8Symbols");
-        mvc.perform(patch("/registrations")
-                        .content(mapper.writeValueAsString(updateRegistrationDto))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Update failed because password does not contain Uppercase char")
-    void updateRegistrationUsernameFailInvalidPassword_NoUppercaseChar() {
-        updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 1L, "8symbols!");
-        mvc.perform(patch("/registrations")
-                        .content(mapper.writeValueAsString(updateRegistrationDto))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Update failed because password does not contain Lowercase char")
-    void updateRegistrationUsernameFailInvalidPassword_NoLowercaseChar() {
-        updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 1L, "8SYMBOLS!");
-        mvc.perform(patch("/registrations")
-                        .content(mapper.writeValueAsString(updateRegistrationDto))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Update failed because password does not contain Numeric char")
-    void updateRegistrationUsernameFailInvalidPassword_NoNumericChar() {
-        updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 1L, "Symbols!");
-        mvc.perform(patch("/registrations")
-                        .content(mapper.writeValueAsString(updateRegistrationDto))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Update failed because password is null")
-    void updateRegistrationUsernameFailInvalidPassword_Null() {
-        updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 1L, null);
-        mvc.perform(patch("/registrations")
-                        .content(mapper.writeValueAsString(updateRegistrationDto))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
-    }
-
-    @Test
-    @SneakyThrows
     @DisplayName("Update failed due to blank username")
     void updateRegistrationFailBlankUsername() {
         updateRegistrationDto =
@@ -752,62 +649,6 @@ public class RegistrationControllerTest {
 
     @Test
     @SneakyThrows
-    @DisplayName("Registration failed to deleteRegistration because password does not contain Numeric char")
-    void deleteRegistrationFailInvalidPassword_NoNumericChar() {
-        registrationCredentials = createRegistrationCredentials(1L, "Symbols!");
-        mvc.perform(delete("/registrations")
-                        .content(mapper.writeValueAsString(registrationCredentials))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).deleteRegistration(registrationCredentials);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Registration failed to deleteRegistration because password does not contain Uppercase char")
-    void deleteRegistrationFailInvalidPassword_NoUppercaseChar() {
-        registrationCredentials = createRegistrationCredentials(1L, "8symbols!");
-        mvc.perform(delete("/registrations")
-                        .content(mapper.writeValueAsString(registrationCredentials))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).deleteRegistration(registrationCredentials);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Registration failed to deleteRegistration because password does not contain Lowercase char")
-    void deleteRegistrationFailInvalidPassword_NoLowercaseChar() {
-        registrationCredentials = createRegistrationCredentials(1L, "8SYMBOLS!");
-        mvc.perform(delete("/registrations")
-                        .content(mapper.writeValueAsString(registrationCredentials))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).deleteRegistration(registrationCredentials);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Registration failed to deleteRegistration because password does not contain Special char")
-    void deleteRegistrationFailInvalidPassword_NoSpecialChar() {
-        registrationCredentials = createRegistrationCredentials(1L, "8Symbols");
-        mvc.perform(delete("/registrations")
-                        .content(mapper.writeValueAsString(registrationCredentials))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).deleteRegistration(registrationCredentials);
-    }
-
-    @Test
-    @SneakyThrows
     @DisplayName("Update registration, valid status")
     void updateRegistrationStatus_whenValidStatus_shouldReturn200() {
         RegistrationStatus status = RegistrationStatus.APPROVED;
@@ -887,7 +728,7 @@ public class RegistrationControllerTest {
                         .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
 
         verify(registrationService, times(1)).updateRegistrationStatus(userId, registrationId,
                 status, registrationCredentials);
@@ -1004,7 +845,7 @@ public class RegistrationControllerTest {
                         .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
 
         verify(registrationService, times(1)).declineRegistration(userId, registrationId,
                 reason, registrationCredentials);

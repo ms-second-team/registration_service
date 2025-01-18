@@ -29,7 +29,6 @@ public record NewRegistrationDto(
         @Schema(description = "Event id")
         Long eventId,
 
-        @StrongPassword
         @Schema(description = "User password, if the requester is registered")
         String userPassword
 ) {

@@ -18,9 +18,8 @@ public record RegistrationCredentials(
         Long id,
 
         @NotBlank
-        @Size(min = 8, message = "Password must contain at least 8 symbols")
-        @StrongPassword
-        @Schema(description = "Author's username")
+        @Size(min = 8, max = 32, message = "Password must contain at least 8 symbols")
+        @Schema(description = "Password")
         String password
 ) {
 }

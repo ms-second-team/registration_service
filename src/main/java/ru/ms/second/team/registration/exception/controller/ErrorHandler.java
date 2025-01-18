@@ -25,10 +25,10 @@ public class ErrorHandler {
     }
 
     @ExceptionHandler(PasswordIncorrectException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
     public ErrorResponse handlePasswordIncorrectException(final PasswordIncorrectException e) {
-        log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
-        return new ErrorResponse(HttpStatus.BAD_REQUEST.toString(), e.getMessage());
+        log.error("{}, {}", HttpStatus.FORBIDDEN, e.getLocalizedMessage());
+        return new ErrorResponse(HttpStatus.FORBIDDEN.toString(), e.getMessage());
     }
 
     @ExceptionHandler(ConstraintViolationException.class)

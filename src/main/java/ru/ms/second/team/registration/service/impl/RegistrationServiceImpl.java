@@ -61,22 +61,13 @@ public class RegistrationServiceImpl implements RegistrationService {
     public CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto) {
         log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
-        UserDto author;
-        String password;
-        if (creationDto.userPassword() != null) {
-            password = creationDto.userPassword();
-            author = findUserByEmail(creationDto.email(), password);
-        } else {
-            password = createPassword();
-            NewUserRequest newUserRequest = generateNewUserRequest(creationDto, password);
-            author = userClient.createUser(newUserRequest);
-        }
+        String password = updatePassword(creationDto);
+        UserDto author = updateAuthor(creationDto, password);
         findEventOrThrow(author.id(), creationDto.eventId());
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(password);
         registration.setAuthorId(author.id());
         registration = registrationRepository.save(registration);
-
         return registrationMapper.toCreatedDto(registration);
     }
 
@@ -241,9 +232,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         final EventDto event = findEventOrThrow(userId, eventId);
         if (event.ownerId().equals(userId)) return true;
         List<TeamMemberDto> teamMemberDtoList = eventClient.getTeamsByEventId(userId, eventId).getBody();
-        if (teamMemberDtoList == null) {
-            throw new NotFoundException(String.format("Teams for event with id=%d were not found", eventId));
-        }
+
         return teamMemberDtoList.stream()
                 .anyMatch(tm -> tm.userId().equals(userId) && tm.role().equals(TeamMemberRole.MANAGER));
     }
@@ -285,5 +274,27 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .password(password)
                 .build();
         return userClient.findUserByEmail(credentials);
+    }
+
+    private String updatePassword(NewRegistrationDto creationDto) {
+        String password;
+        if (creationDto.userPassword() != null) {
+            password = creationDto.userPassword();
+        } else {
+            password = createPassword();
+        }
+       return password;
+    }
+
+    private UserDto updateAuthor(NewRegistrationDto creationDto, String password) {
+        UserDto author;
+        if (creationDto.userPassword() != null) {
+            author = findUserByEmail(creationDto.email(), password);
+        } else {
+            NewUserRequest newUserRequest = generateNewUserRequest(creationDto, password);
+            author = userClient.createUser(newUserRequest);
+        }
+        return author;
+
     }
 }

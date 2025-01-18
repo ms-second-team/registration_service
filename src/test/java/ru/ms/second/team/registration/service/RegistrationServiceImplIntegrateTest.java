@@ -64,7 +64,7 @@ public class RegistrationServiceImplIntegrateTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16.4-alpine");
 
     @Autowired
     RegistrationServiceImpl registrationService;

@@ -14,9 +14,6 @@ public record UpdateRegistrationDto(
         @Schema(description = "Registration id")
         Long id,
 
-        @NotBlank
-        @Size(min = 8, message = "Password must contain at least 8 symbols")
-        @StrongPassword
         @Schema(description = "Registration password")
         String password,
 
