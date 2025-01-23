@@ -68,7 +68,7 @@ public class RegistrationController {
                                                              @Parameter(description = "New registration data")
                                                              @RequestBody @Valid NewRegistrationDto registrationDto) {
         log.debug("RegistrationController: POST /registrations");
-        return registrationService.createRegistration(registrationDto);
+        return registrationService.createRegistration(registrationDto, userId);
     }
 
     @Operation(summary = "Update registration")

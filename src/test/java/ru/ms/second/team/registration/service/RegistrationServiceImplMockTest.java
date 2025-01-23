@@ -105,7 +105,7 @@ public class RegistrationServiceImplMockTest {
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto(registration.getId());
         Registration registrationFromMapper = createRegistration(
                 null, "user1", "mail@mail.com", "78005553535");
-        EventDto event = createEvent(2L, 10);
+        EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
         UserDto userDto = createUser();
 
         when(mapper.toModel(newRegistrationDto)).thenReturn(registrationFromMapper);
@@ -113,9 +113,9 @@ public class RegistrationServiceImplMockTest {
         when(registrationRepository.save(registrationFromMapper)).thenReturn(registration);
         when(userClient.createUser(any(NewUserRequest.class))).thenReturn(userDto);
         when(eventClient.getEventById(1L, newRegistrationDto.eventId()))
-                .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
+                .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
 
-        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto);
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, userId);
 
         assertEquals(result.id(), createdRegistrationResponseDto.id(), "id's must be same");
         assertEquals(result.password(), registration.getPassword(), "passwords must be same");
@@ -134,13 +134,13 @@ public class RegistrationServiceImplMockTest {
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto(registration.getId());
         Registration registrationFromMapper = createRegistration(
                 null, "user1", "mail@mail.com", "78005553535");
-        EventDto event = createEvent(2L, 10);
+        EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
         UserDto userDto = createUser();
         UserCredentials credentials = UserCredentials.builder()
                 .email(userDto.email())
                 .password(newRegistrationDto.userPassword())
                 .build();
-                0L, "user1", "mail@mail.com", "78005553535");
+
         EventDto event = createEvent(2L, 10, OPEN);
 
         when(mapper.toModel(newRegistrationDto)).thenReturn(registrationFromMapper);
@@ -150,9 +150,7 @@ public class RegistrationServiceImplMockTest {
         when(eventClient.getEventById(1L, newRegistrationDto.eventId()))
                 .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
 
-        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, 1L);
-
-        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto);
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, userId);
 
         assertEquals(result.id(), createdRegistrationResponseDto.id(), "id's must be same");
         assertEquals(result.password(), registration.getPassword(), "passwords must be same");
@@ -422,8 +420,6 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
         EventDto event = createEvent(userId, 10, OPEN);
-        registrationCredentials = createRegistrationCredentials("1234");
-        EventDto event = createEvent(userId, 10);
         registrationCredentials = createRegistrationCredentials("8Symbols!");
 
         when(registrationRepository.findById(registration.getId()))
@@ -457,8 +453,6 @@ public class RegistrationServiceImplMockTest {
         );
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
         EventDto event = createEvent((userId + 1), 10, OPEN);
-        registrationCredentials = createRegistrationCredentials("1234");
-        EventDto event = createEvent((userId + 1), 10);
         registrationCredentials = createRegistrationCredentials("8Symbols!");
 
         when(registrationRepository.findById(registration.getId()))
@@ -496,10 +490,8 @@ public class RegistrationServiceImplMockTest {
         TeamMemberDto teamMemberDto1 = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
         TeamMemberDto teamMemberDto2 =
                 createTeamMember(userId + 2L, registration.getEventId(), TeamMemberRole.MEMBER);
-        EventDto event = createEvent((userId + 1), 10);
-        registrationCredentials = createRegistrationCredentials("8Symbols!");
         EventDto event = createEvent((userId + 1), 10, OPEN);
-        registrationCredentials = createRegistrationCredentials("1234");
+        registrationCredentials = createRegistrationCredentials("8Symbols!");
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -534,10 +526,8 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
-        EventDto event = createEvent((userId + 1), 10);
-        registrationCredentials = createRegistrationCredentials("8Symbols!");
         EventDto event = createEvent((userId + 1), 10, OPEN);
-        registrationCredentials = createRegistrationCredentials("1234");
+        registrationCredentials = createRegistrationCredentials("8Symbols!");
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -565,10 +555,8 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto event = createEvent((userId + 1), 10);
-        registrationCredentials = createRegistrationCredentials("8Symbols!");
         EventDto event = createEvent((userId + 1), 10, OPEN);
-        registrationCredentials = createRegistrationCredentials("1234");
+        registrationCredentials = createRegistrationCredentials("8Symbols!");;
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -598,10 +586,8 @@ public class RegistrationServiceImplMockTest {
         );
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
         TeamMemberDto teamMemberDto2 = createTeamMember(userId + 2, registration.getEventId(), TeamMemberRole.MANAGER);
-        EventDto event = createEvent((userId + 1), 10);
-        registrationCredentials = createRegistrationCredentials("8Symbols!");
         EventDto event = createEvent((userId + 1), 10, OPEN);
-        registrationCredentials = createRegistrationCredentials("1234");
+        registrationCredentials = createRegistrationCredentials("8Symbols!");
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -630,8 +616,6 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
         registrationCredentials = createRegistrationCredentials("8Symbols!");
-        EventDto eventDto = createEvent(userId, 0);
-        registrationCredentials = createRegistrationCredentials("1234");
         EventDto eventDto = createEvent(userId, 0, OPEN);
 
         when(registrationRepository.findById(registration.getId()))
@@ -665,8 +649,6 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535", APPROVED
         );
         registrationCredentials = createRegistrationCredentials("8Symbols!");
-        EventDto eventDto = createEvent(userId, 1);
-        registrationCredentials = createRegistrationCredentials("1234");
         EventDto eventDto = createEvent(userId, 1, OPEN);
 
         when(registrationRepository.findById(registration.getId()))
@@ -705,8 +687,6 @@ public class RegistrationServiceImplMockTest {
                 3L, "user3", "mail3@mail.com", "78005553535", APPROVED
         );
         registrationCredentials = createRegistrationCredentials("8Symbols!");
-        EventDto eventDto = createEvent(userId, 1);
-        registrationCredentials = createRegistrationCredentials("1234");
         EventDto eventDto = createEvent(userId, 1, OPEN);
 
         when(registrationRepository.findById(registration1.getId()))
@@ -746,8 +726,6 @@ public class RegistrationServiceImplMockTest {
                 3L, "user3", "mail3@mail.com", "78005553535", APPROVED
         );
         registrationCredentials = createRegistrationCredentials("8Symbols!");
-        EventDto eventDto = createEvent(userId, 3);
-        registrationCredentials = createRegistrationCredentials("1234");
         EventDto eventDto = createEvent(userId, 3, OPEN);
 
         when(registrationRepository.findById(registration1.getId()))
@@ -787,8 +765,6 @@ public class RegistrationServiceImplMockTest {
                 3L, "user3", "mail3@mail.com", "78005553535", APPROVED
         );
         registrationCredentials = createRegistrationCredentials("8Symbols!");
-        EventDto eventDto = createEvent(userId, 0);
-        registrationCredentials = createRegistrationCredentials("1234");
         EventDto eventDto = createEvent(userId, 0, OPEN);
 
         when(registrationRepository.findById(registration1.getId()))
@@ -1211,7 +1187,7 @@ public class RegistrationServiceImplMockTest {
     @Test
     @DisplayName("Delete approved registration")
     void deleteRegistration_whenDeletingApprovedRegistration_ShouldInvokeSearchMethod() {
-        registrationCredentials = createRegistrationCredentials("1234");
+        registrationCredentials = createRegistrationCredentials("8Symbols!");
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
@@ -1238,7 +1214,7 @@ public class RegistrationServiceImplMockTest {
     @Test
     @DisplayName("Deleting not approved registration")
     void deleteRegistration_whenDeletingNotApprovedRegistration_ShouldNotInvokeSearchMethod() {
-        registrationCredentials = createRegistrationCredentials("1234");
+        registrationCredentials = createRegistrationCredentials("8Symbols!");
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );

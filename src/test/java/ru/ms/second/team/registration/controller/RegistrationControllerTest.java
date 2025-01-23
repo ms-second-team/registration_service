@@ -70,7 +70,7 @@ public class RegistrationControllerTest {
         newRegistrationDto =
                 createNewRegistrationDto("user1", "email@mail.com", "78005553535", 1L, null);
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
-        when(registrationService.createRegistration(newRegistrationDto))
+        when(registrationService.createRegistration(newRegistrationDto, userId))
                 .thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
@@ -81,7 +81,7 @@ public class RegistrationControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.password", is(createdRegistrationResponseDto.password())));
-        verify(registrationService, times(1)).createRegistration(newRegistrationDto);
+        verify(registrationService, times(1)).createRegistration(newRegistrationDto, userId);
     }
 
     @Test
@@ -92,7 +92,7 @@ public class RegistrationControllerTest {
                 createNewRegistrationDto(
                         "user1", "email@mail.com", "78005553535", 1L, "8Symbols!");
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
-        when(registrationService.createRegistration(newRegistrationDto))
+        when(registrationService.createRegistration(newRegistrationDto, userId))
                 .thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
@@ -103,7 +103,7 @@ public class RegistrationControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.password", is(createdRegistrationResponseDto.password())));
-        verify(registrationService, times(1)).createRegistration(newRegistrationDto);
+        verify(registrationService, times(1)).createRegistration(newRegistrationDto, userId);
     }
 
     @Test
@@ -114,7 +114,7 @@ public class RegistrationControllerTest {
                 createNewRegistrationDto(
                         "user1", "email@mail.com", "78005553535", 1L, "   ");
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
-        when(registrationService.createRegistration(newRegistrationDto))
+        when(registrationService.createRegistration(newRegistrationDto, userId))
                 .thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
@@ -122,7 +122,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(newRegistrationDto);
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
     }
 
     @Test
@@ -133,7 +133,7 @@ public class RegistrationControllerTest {
                 createNewRegistrationDto(
                         "user1", "email@mail.com", "78005553535", 1L, "Symbols!");
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
-        when(registrationService.createRegistration(newRegistrationDto))
+        when(registrationService.createRegistration(newRegistrationDto, userId))
                 .thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
@@ -141,7 +141,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(newRegistrationDto);
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
     }
 
     @Test
@@ -152,7 +152,7 @@ public class RegistrationControllerTest {
                 createNewRegistrationDto(
                         "user1", "email@mail.com", "78005553535", 1L, "8symbols!");
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
-        when(registrationService.createRegistration(newRegistrationDto))
+        when(registrationService.createRegistration(newRegistrationDto, userId))
                 .thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
@@ -160,27 +160,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(newRegistrationDto);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Creation of new registration by existing user failed because password does not contain Lowercase char")
-    void createRegistrationWithPasswordFailInvalidPassword_NoLowercaseChar() {
-        newRegistrationDto =
-                createNewRegistrationDto(
-                        "user1", "email@mail.com", "78005553535", 1L, "8SYMBOLS!");
-        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
-        when(registrationService.createRegistration(newRegistrationDto))
-                .thenReturn(createdRegistrationResponseDto);
-        mvc.perform(post("/registrations")
-                        .content(mapper.writeValueAsString(newRegistrationDto))
-                        .header("X-User-Id", userId)
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(newRegistrationDto);
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
     }
 
     @Test
@@ -191,7 +171,7 @@ public class RegistrationControllerTest {
                 createNewRegistrationDto(
                         "user1", "email@mail.com", "78005553535", 1L, "8Symbols");
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
-        when(registrationService.createRegistration(newRegistrationDto))
+        when(registrationService.createRegistration(newRegistrationDto, userId))
                 .thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
@@ -199,7 +179,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(newRegistrationDto);
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
     }
 
     @Test
@@ -210,7 +190,7 @@ public class RegistrationControllerTest {
                 createNewRegistrationDto(
                         "user1", "email@mail.com", "78005553535", 1L, "7Symbo!");
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
-        when(registrationService.createRegistration(newRegistrationDto))
+        when(registrationService.createRegistration(newRegistrationDto, userId))
                 .thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
@@ -218,7 +198,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(newRegistrationDto);
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
     }
 
     @Test
@@ -234,7 +214,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(any());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
     }
 
     @Test
@@ -249,7 +229,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(any());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
     }
 
     @Test
@@ -264,7 +244,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(any());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
     }
 
     @Test
@@ -279,7 +259,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).createRegistration(any());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
     }
 
     @Test
@@ -583,7 +563,6 @@ public class RegistrationControllerTest {
     @DisplayName("Registration deleted successfully")
     void deleteRegistrationById() {
         registrationCredentials = createRegistrationCredentials(1L, "8Symbols!");
-        registrationCredentials = createRegistrationCredentials(1L, "1234");
         Long userId = 1L;
         mvc.perform(delete("/registrations")
                         .header("X-User-Id", userId)
@@ -600,7 +579,6 @@ public class RegistrationControllerTest {
     @DisplayName("Registration failed to deleteRegistration due to non positive id")
     void deleteRegistrationByIdNonPositiveId() {
         registrationCredentials = createRegistrationCredentials(0L, "8Symbols!");
-        registrationCredentials = createRegistrationCredentials(0L, "1234");
         Long userId = 1L;
         mvc.perform(delete("/registrations")
                         .header("X-User-Id", userId)
@@ -623,7 +601,7 @@ public class RegistrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
-        verify(registrationService, never()).deleteRegistration(registrationCredentials);
+        verify(registrationService, never()).deleteRegistration(userId, registrationCredentials);
     }
 
     @Test
@@ -631,7 +609,6 @@ public class RegistrationControllerTest {
     @DisplayName("Registration failed to deleteRegistration due to blank password")
     void deleteRegistrationFailBlankPassword() {
         registrationCredentials = createRegistrationCredentials(1L, "         ");
-        registrationCredentials = createRegistrationCredentials(1L, "123");
         Long userId = 1L;
         mvc.perform(delete("/registrations")
                         .header("X-User-Id", userId)
@@ -645,10 +622,6 @@ public class RegistrationControllerTest {
 
     @Test
     @SneakyThrows
-    @DisplayName("Registration failed to deleteRegistration due to too long password")
-    void deleteRegistrationFailLongPassword() {
-        registrationCredentials = createRegistrationCredentials(1L, "12345");
-        Long userId = 1L;
     @DisplayName("Registration failed to deleteRegistration because password is null")
     void deleteRegistrationFailInvalidPassword_IsNull() {
         registrationCredentials = createRegistrationCredentials(1L, null);

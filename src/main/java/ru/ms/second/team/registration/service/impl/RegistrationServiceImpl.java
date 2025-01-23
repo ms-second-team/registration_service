@@ -38,7 +38,6 @@ import ru.ms.second.team.registration.repository.jpa.DeclinedRegistrationReposit
 import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.RegistrationService;
 
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -62,14 +61,12 @@ public class RegistrationServiceImpl implements RegistrationService {
 
     @Override
     @Transactional
-    public CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto) {
+    public CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto, Long userId) {
         log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
+        EventDto eventDto = findEventOrThrow(userId, creationDto.eventId());
         String password = updatePassword(creationDto);
         UserDto author = updateAuthor(creationDto, password);
-        findEventOrThrow(author.id(), creationDto.eventId());
-
-        EventDto eventDto = findEventOrThrow(userId, creationDto.eventId());
         checkEventStatus(eventDto);
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(password);
@@ -111,7 +108,6 @@ public class RegistrationServiceImpl implements RegistrationService {
     public void deleteRegistration(Long userId, RegistrationCredentials registrationCredentials) {
         log.info("RegistrationService: executing deleteRegistration method. Deleting registration id={}",
                 registrationCredentials.id());
-
         Registration registration = findRegistrationOrThrow(registrationCredentials.id());
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
         checkIfRegistrationCanBeDeleted(userId, registration);
@@ -120,8 +116,6 @@ public class RegistrationServiceImpl implements RegistrationService {
         if (APPROVED.equals(registration.getStatus())) {
             updateStatusOfClosestWaitingRegistration(registration);
         }
-        updateStatusOfClosestWaitingRegistration(registration);
-        userClient.deleteUser(registration.getAuthorId(), registrationCredentials.password());
     }
 
     @Override
@@ -300,7 +294,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     private void verificationTheUserHasTheRightToChangeStatusOrThrow(Long userId, Long eventId) {
-        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, eventId)) {
+        if (checkIfUserIsOwnerOrManagerOfEvent(userId, eventId)) {
             throw new NotAuthorizedException(String.format(
                     "User id=%d has no rights to change registration status for event id=%d",
                     userId, eventId));
@@ -327,4 +321,6 @@ public class RegistrationServiceImpl implements RegistrationService {
                             registration.getEventId()));
         }
     }
+
+
 }

@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface RegistrationService {
 
-    CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto);
+    CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto, Long userId);
 
     UpdatedRegistrationResponseDto updateRegistration(UpdateRegistrationDto updateDto);
 
