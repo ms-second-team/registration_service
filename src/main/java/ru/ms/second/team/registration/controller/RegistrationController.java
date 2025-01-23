@@ -162,10 +162,11 @@ public class RegistrationController {
     })
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteRegistration(@Parameter(description = "Registration credentials")
+    public void deleteRegistration(@RequestHeader("X-User-Id") Long userId,
+                                   @Parameter(description = "Registration credentials")
                                    @RequestBody @Valid RegistrationCredentials deleteDto) {
         log.debug("RegistrationController: DELETE /registrations");
-        registrationService.deleteRegistration(deleteDto);
+        registrationService.deleteRegistration(userId, deleteDto);
     }
 
     @Operation(summary = "Update registration status")

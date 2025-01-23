@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.ms.second.team.registration.client.event.EventClient;
 import ru.ms.second.team.registration.client.user.UserClient;
 import ru.ms.second.team.registration.dto.event.EventDto;
+import ru.ms.second.team.registration.dto.event.EventRegistrationStatus;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
 import ru.ms.second.team.registration.dto.registration.request.NewRegistrationDto;
@@ -28,6 +29,7 @@ import ru.ms.second.team.registration.dto.user.UserDto;
 import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
+import ru.ms.second.team.registration.exception.exceptions.ValidationException;
 import ru.ms.second.team.registration.mapper.RegistrationMapper;
 import ru.ms.second.team.registration.model.DeclinedRegistration;
 import ru.ms.second.team.registration.model.Registration;
@@ -36,6 +38,8 @@ import ru.ms.second.team.registration.repository.jpa.DeclinedRegistrationReposit
 import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.RegistrationService;
 
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -64,10 +68,14 @@ public class RegistrationServiceImpl implements RegistrationService {
         String password = updatePassword(creationDto);
         UserDto author = updateAuthor(creationDto, password);
         findEventOrThrow(author.id(), creationDto.eventId());
+
+        EventDto eventDto = findEventOrThrow(userId, creationDto.eventId());
+        checkEventStatus(eventDto);
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(password);
         registration.setAuthorId(author.id());
         registration = registrationRepository.save(registration);
+
         return registrationMapper.toCreatedDto(registration);
     }
 
@@ -95,19 +103,23 @@ public class RegistrationServiceImpl implements RegistrationService {
                 page, size, eventId);
 
         Page<Registration> registrations = registrationRepository.findAllByEventId(eventId, PageRequest.of(page, size));
-
         return registrationMapper.toRegistraionDtoList(registrations.getContent());
     }
 
     @Override
     @Transactional
-    public void deleteRegistration(RegistrationCredentials registrationCredentials) {
+    public void deleteRegistration(Long userId, RegistrationCredentials registrationCredentials) {
         log.info("RegistrationService: executing deleteRegistration method. Deleting registration id={}",
                 registrationCredentials.id());
+
         Registration registration = findRegistrationOrThrow(registrationCredentials.id());
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
+        checkIfRegistrationCanBeDeleted(userId, registration);
         registrationRepository.deleteById(registrationCredentials.id());
         declinedRegistrationRepository.deleteAllByRegistrationId(registrationCredentials.id());
+        if (APPROVED.equals(registration.getStatus())) {
+            updateStatusOfClosestWaitingRegistration(registration);
+        }
         updateStatusOfClosestWaitingRegistration(registration);
         userClient.deleteUser(registration.getAuthorId(), registrationCredentials.password());
     }
@@ -118,13 +130,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                                                        RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
-
-        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId())) {
-            throw new NotAuthorizedException(String.format(
-                    "User id=%d has no rights to change registration status for event id=%d",
-                    userId, registration.getEventId()));
-        }
-
+        verificationTheUserHasTheRightToChangeStatusOrThrow(userId, registration.getEventId());
         registration.setStatus(newStatus);
         if (newStatus.equals(APPROVED)) {
             checkEventParticipationLimit(userId, registration, newStatus);
@@ -139,13 +145,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                                                   RegistrationCredentials registrationCredentials) {
         final Registration registration = findRegistrationOrThrow(registrationId);
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
-
-        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, registration.getEventId())) {
-            throw new NotAuthorizedException(String.format(
-                    "User id=%d has no rights to change registration status for event id=%d",
-                    userId, registration.getEventId()));
-        }
-
+        verificationTheUserHasTheRightToChangeStatusOrThrow(userId, registration.getEventId());
         registration.setStatus(DECLINED);
         final Registration updatedRegistration = registrationRepository.save(registration);
         saveDeclineReason(reason, updatedRegistration);
@@ -182,8 +182,10 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     private void updateStatusOfClosestWaitingRegistration(Registration registration) {
-        if (registration.getStatus().equals(APPROVED)) {
-            Registration closestRegistration = registrationRepository.findEarliestWaitingRegistration();
+        final List<Registration> waitingRegistrationsList = registrationRepository
+                .searchRegistrations(List.of(WAITING), registration.getEventId());
+        if (!waitingRegistrationsList.isEmpty()) {
+            Registration closestRegistration = waitingRegistrationsList.getFirst();
             closestRegistration.setStatus(PENDING);
             registrationRepository.save(closestRegistration);
         }
@@ -232,7 +234,6 @@ public class RegistrationServiceImpl implements RegistrationService {
         final EventDto event = findEventOrThrow(userId, eventId);
         if (event.ownerId().equals(userId)) return true;
         List<TeamMemberDto> teamMemberDtoList = eventClient.getTeamsByEventId(userId, eventId).getBody();
-
         return teamMemberDtoList.stream()
                 .anyMatch(tm -> tm.userId().equals(userId) && tm.role().equals(TeamMemberRole.MANAGER));
     }
@@ -296,5 +297,34 @@ public class RegistrationServiceImpl implements RegistrationService {
         }
         return author;
 
+    }
+
+    private void verificationTheUserHasTheRightToChangeStatusOrThrow(Long userId, Long eventId) {
+        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, eventId)) {
+            throw new NotAuthorizedException(String.format(
+                    "User id=%d has no rights to change registration status for event id=%d",
+                    userId, eventId));
+        }
+    }
+
+    private void checkEventStatus(EventDto eventDto) {
+        if (!eventDto.registrationStatus().equals(EventRegistrationStatus.OPEN)) {
+            throw new NotAuthorizedException(String.format(
+                    "Registration for the event with id =" + eventDto.id() + " " + eventDto.registrationStatus()));
+        }
+    }
+
+    private boolean isEventStarted(Long userId, Long eventId) {
+        final EventDto event = eventClient.getEventById(userId, eventId).getBody();
+        return event.startDateTime().isBefore(LocalDateTime.now());
+    }
+
+    private void checkIfRegistrationCanBeDeleted(Long userId, Registration registration) {
+        if (registration.getStatus().equals(APPROVED) && isEventStarted(userId, registration.getEventId())) {
+            throw new ValidationException(
+                    String.format("You cannot delete an approved registration (id = %d) for an event (id = %d) that has started",
+                            registration.getId(),
+                            registration.getEventId()));
+        }
     }
 }

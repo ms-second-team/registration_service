@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import ru.ms.second.team.registration.client.event.EventClient;
 import ru.ms.second.team.registration.client.user.UserClient;
 import ru.ms.second.team.registration.dto.event.EventDto;
+import ru.ms.second.team.registration.dto.event.EventRegistrationStatus;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
 import ru.ms.second.team.registration.dto.registration.request.NewRegistrationDto;
@@ -51,10 +52,12 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static ru.ms.second.team.registration.dto.event.EventRegistrationStatus.OPEN;
 import static ru.ms.second.team.registration.model.RegistrationStatus.APPROVED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.DECLINED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.PENDING;
@@ -137,6 +140,8 @@ public class RegistrationServiceImplMockTest {
                 .email(userDto.email())
                 .password(newRegistrationDto.userPassword())
                 .build();
+                0L, "user1", "mail@mail.com", "78005553535");
+        EventDto event = createEvent(2L, 10, OPEN);
 
         when(mapper.toModel(newRegistrationDto)).thenReturn(registrationFromMapper);
         when(mapper.toCreatedDto(registration)).thenReturn(createdRegistrationResponseDto);
@@ -144,6 +149,8 @@ public class RegistrationServiceImplMockTest {
         when(userClient.findUserByEmail(credentials)).thenReturn(userDto);
         when(eventClient.getEventById(1L, newRegistrationDto.eventId()))
                 .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
+
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, 1L);
 
         CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto);
 
@@ -368,7 +375,7 @@ public class RegistrationServiceImplMockTest {
 
         when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
 
-        registrationService.deleteRegistration(registrationCredentials);
+        registrationService.deleteRegistration(userId, registrationCredentials);
 
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, times(1)).deleteById(registrationCredentials.id());
@@ -386,7 +393,7 @@ public class RegistrationServiceImplMockTest {
 
         when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
 
-        assertThrows(PasswordIncorrectException.class, () -> registrationService.deleteRegistration(registrationCredentials));
+        assertThrows(PasswordIncorrectException.class, () -> registrationService.deleteRegistration(userId, registrationCredentials));
 
         verify(registrationRepository, times(1)).findById(registration.getId());
         verify(registrationRepository, never()).deleteById(registrationCredentials.id());
@@ -400,7 +407,7 @@ public class RegistrationServiceImplMockTest {
 
         when(registrationRepository.findById(registrationCredentials.id())).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> registrationService.deleteRegistration(registrationCredentials));
+        assertThrows(NotFoundException.class, () -> registrationService.deleteRegistration(userId, registrationCredentials));
 
         verify(registrationRepository, times(1)).findById(registrationCredentials.id());
         verify(registrationRepository, never()).deleteById(registrationCredentials.id());
@@ -414,6 +421,8 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
+        EventDto event = createEvent(userId, 10, OPEN);
+        registrationCredentials = createRegistrationCredentials("1234");
         EventDto event = createEvent(userId, 10);
         registrationCredentials = createRegistrationCredentials("8Symbols!");
 
@@ -447,6 +456,8 @@ public class RegistrationServiceImplMockTest {
                 1L, "user1", "mail@mail.com", "78005553535"
         );
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
+        EventDto event = createEvent((userId + 1), 10, OPEN);
+        registrationCredentials = createRegistrationCredentials("1234");
         EventDto event = createEvent((userId + 1), 10);
         registrationCredentials = createRegistrationCredentials("8Symbols!");
 
@@ -487,6 +498,8 @@ public class RegistrationServiceImplMockTest {
                 createTeamMember(userId + 2L, registration.getEventId(), TeamMemberRole.MEMBER);
         EventDto event = createEvent((userId + 1), 10);
         registrationCredentials = createRegistrationCredentials("8Symbols!");
+        EventDto event = createEvent((userId + 1), 10, OPEN);
+        registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -523,6 +536,8 @@ public class RegistrationServiceImplMockTest {
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
         EventDto event = createEvent((userId + 1), 10);
         registrationCredentials = createRegistrationCredentials("8Symbols!");
+        EventDto event = createEvent((userId + 1), 10, OPEN);
+        registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -552,6 +567,8 @@ public class RegistrationServiceImplMockTest {
         );
         EventDto event = createEvent((userId + 1), 10);
         registrationCredentials = createRegistrationCredentials("8Symbols!");
+        EventDto event = createEvent((userId + 1), 10, OPEN);
+        registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -583,6 +600,8 @@ public class RegistrationServiceImplMockTest {
         TeamMemberDto teamMemberDto2 = createTeamMember(userId + 2, registration.getEventId(), TeamMemberRole.MANAGER);
         EventDto event = createEvent((userId + 1), 10);
         registrationCredentials = createRegistrationCredentials("8Symbols!");
+        EventDto event = createEvent((userId + 1), 10, OPEN);
+        registrationCredentials = createRegistrationCredentials("1234");
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -612,6 +631,8 @@ public class RegistrationServiceImplMockTest {
         );
         registrationCredentials = createRegistrationCredentials("8Symbols!");
         EventDto eventDto = createEvent(userId, 0);
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 0, OPEN);
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -645,6 +666,8 @@ public class RegistrationServiceImplMockTest {
         );
         registrationCredentials = createRegistrationCredentials("8Symbols!");
         EventDto eventDto = createEvent(userId, 1);
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 1, OPEN);
 
         when(registrationRepository.findById(registration.getId()))
                 .thenReturn(Optional.of(registration));
@@ -683,6 +706,8 @@ public class RegistrationServiceImplMockTest {
         );
         registrationCredentials = createRegistrationCredentials("8Symbols!");
         EventDto eventDto = createEvent(userId, 1);
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 1, OPEN);
 
         when(registrationRepository.findById(registration1.getId()))
                 .thenReturn(Optional.of(registration1));
@@ -722,6 +747,8 @@ public class RegistrationServiceImplMockTest {
         );
         registrationCredentials = createRegistrationCredentials("8Symbols!");
         EventDto eventDto = createEvent(userId, 3);
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 3, OPEN);
 
         when(registrationRepository.findById(registration1.getId()))
                 .thenReturn(Optional.of(registration1));
@@ -761,6 +788,8 @@ public class RegistrationServiceImplMockTest {
         );
         registrationCredentials = createRegistrationCredentials("8Symbols!");
         EventDto eventDto = createEvent(userId, 0);
+        registrationCredentials = createRegistrationCredentials("1234");
+        EventDto eventDto = createEvent(userId, 0, OPEN);
 
         when(registrationRepository.findById(registration1.getId()))
                 .thenReturn(Optional.of(registration1));
@@ -835,7 +864,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId, 10);
+        EventDto eventDto = createEvent(userId, 10, OPEN);
         RegistrationStatus status = DECLINED;
         String reason = "reason";
         registrationCredentials = createRegistrationCredentials("8Symbols!");
@@ -876,7 +905,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, OPEN);
         RegistrationStatus status = DECLINED;
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
         String reason = "reason";
@@ -922,7 +951,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, OPEN);
         RegistrationStatus status = DECLINED;
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
         TeamMemberDto teamMemberDto1 =
@@ -970,7 +999,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, OPEN);
         RegistrationStatus status = DECLINED;
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MANAGER);
         TeamMemberDto teamMemberDto1 =
@@ -1018,7 +1047,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, OPEN);
         RegistrationStatus status = DECLINED;
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
         String reason = "reason";
@@ -1049,7 +1078,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, OPEN);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registration.getEventId(), TeamMemberRole.MEMBER);
         TeamMemberDto teamMemberDto1 = createTeamMember(
                 userId + 2L, registration.getEventId(), TeamMemberRole.MANAGER
@@ -1082,7 +1111,7 @@ public class RegistrationServiceImplMockTest {
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
-        EventDto eventDto = createEvent(userId + 1, 10);
+        EventDto eventDto = createEvent(userId + 1, 10, OPEN);
         String reason = "reason";
         registrationCredentials = createRegistrationCredentials("8Symbols!");
 
@@ -1179,6 +1208,54 @@ public class RegistrationServiceImplMockTest {
         verify(registrationRepository, times(1)).getStatusToNumberOfRegistrationsForEvent(eventId);
     }
 
+    @Test
+    @DisplayName("Delete approved registration")
+    void deleteRegistration_whenDeletingApprovedRegistration_ShouldInvokeSearchMethod() {
+        registrationCredentials = createRegistrationCredentials("1234");
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+        registration.setStatus(APPROVED);
+        EventDto event = createEvent(userId, 10, OPEN);
+
+        when(registrationRepository.findById(registration.getId()))
+                .thenReturn(Optional.of(registration));
+        when(eventClient.getEventById(userId, registration.getEventId()))
+                .thenReturn(ResponseEntity.of(Optional.of(event)));
+
+        registrationService.deleteRegistration(userId, registrationCredentials);
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).deleteById(registrationCredentials.id());
+        verify(declinedRegistrationRepository, times(1))
+                .deleteAllByRegistrationId(registrationCredentials.id());
+        verify(registrationRepository, times(1))
+                .searchRegistrations(Collections.singletonList(WAITING), registration.getEventId());
+        verify(eventClient, times(1))
+                .getEventById(userId, registration.getEventId());
+    }
+
+    @Test
+    @DisplayName("Deleting not approved registration")
+    void deleteRegistration_whenDeletingNotApprovedRegistration_ShouldNotInvokeSearchMethod() {
+        registrationCredentials = createRegistrationCredentials("1234");
+        registration = createRegistration(
+                1L, "user1", "mail@mail.com", "78005553535"
+        );
+
+        when(registrationRepository.findById(registration.getId())).thenReturn(Optional.of(registration));
+
+        registrationService.deleteRegistration(userId, registrationCredentials);
+
+        verify(registrationRepository, times(1)).findById(registration.getId());
+        verify(registrationRepository, times(1)).deleteById(registrationCredentials.id());
+        verify(declinedRegistrationRepository, times(1))
+                .deleteAllByRegistrationId(registrationCredentials.id());
+        verify(registrationRepository, never())
+                .searchRegistrations(any(), anyLong());
+    }
+
+
     private NewRegistrationDto createNewRegistrationDto() {
         return NewRegistrationDto.builder()
                 .email("mail@mail.com")
@@ -1272,7 +1349,7 @@ public class RegistrationServiceImplMockTest {
                 .build();
     }
 
-    private EventDto createEvent(long ownerId, int participantLimit) {
+    private EventDto createEvent(long ownerId, int participantLimit, EventRegistrationStatus status) {
         return EventDto.builder()
                 .id(1L)
                 .name("event name " + ownerId)
@@ -1281,6 +1358,7 @@ public class RegistrationServiceImplMockTest {
                 .startDateTime(LocalDateTime.now().plusDays(ownerId))
                 .endDateTime(LocalDateTime.now().plusMonths(ownerId))
                 .participantLimit(participantLimit)
+                .registrationStatus(status)
                 .build();
     }
 
