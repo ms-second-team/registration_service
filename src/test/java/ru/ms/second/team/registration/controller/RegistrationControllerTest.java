@@ -264,6 +264,37 @@ public class RegistrationControllerTest {
 
     @Test
     @SneakyThrows
+    @DisplayName("Creation Failed due to user id is null")
+    void createNewRegistrationUserIdIsNull() {
+        newRegistrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L, null);
+        mvc.perform(post("/registrations")
+                        .content(mapper.writeValueAsString(newRegistrationDto))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Creation Failed due to user id is not positive")
+    void createNewRegistrationUserIdIsNonPositive() {
+        newRegistrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L, null);
+        mvc.perform(post("/registrations")
+                        .content(mapper.writeValueAsString(newRegistrationDto))
+                        .header("X-User-Id", 0L)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).createRegistration(any(), anyLong());
+    }
+
+    @Test
+    @SneakyThrows
     @DisplayName("Username updated successfully")
     void updateRegistrationOnlyUsername() {
         updateRegistrationDto =
@@ -894,4 +925,5 @@ public class RegistrationControllerTest {
                 .email("email@mail.com")
                 .build();
     }
+
 }

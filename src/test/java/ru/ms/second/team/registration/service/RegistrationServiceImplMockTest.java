@@ -107,6 +107,10 @@ public class RegistrationServiceImplMockTest {
                 null, "user1", "mail@mail.com", "78005553535");
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
         UserDto userDto = createUser();
+        UserCredentials credentials = UserCredentials.builder()
+                .email(userDto.email())
+                .password(newRegistrationDto.userPassword())
+                .build();
 
         when(mapper.toModel(newRegistrationDto)).thenReturn(registrationFromMapper);
         when(mapper.toCreatedDto(registration)).thenReturn(createdRegistrationResponseDto);
@@ -115,7 +119,7 @@ public class RegistrationServiceImplMockTest {
         when(eventClient.getEventById(1L, newRegistrationDto.eventId()))
                 .thenReturn(new ResponseEntity<>(eventDto, HttpStatus.OK));
 
-        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, userId);
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, 1L);
 
         assertEquals(result.id(), createdRegistrationResponseDto.id(), "id's must be same");
         assertEquals(result.password(), registration.getPassword(), "passwords must be same");
@@ -150,7 +154,7 @@ public class RegistrationServiceImplMockTest {
         when(eventClient.getEventById(1L, newRegistrationDto.eventId()))
                 .thenReturn(new ResponseEntity<>(event, HttpStatus.OK));
 
-        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, userId);
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(newRegistrationDto, 1L);
 
         assertEquals(result.id(), createdRegistrationResponseDto.id(), "id's must be same");
         assertEquals(result.password(), registration.getPassword(), "passwords must be same");
@@ -521,7 +525,6 @@ public class RegistrationServiceImplMockTest {
     @Test
     @DisplayName("Update registration status to WAITING when one team member found and is not authorized")
     void updateRegistrationStatusByTeamMember_whenOneTeamMemberFound_ShouldThrowNotAuthorized() {
-        RegistrationStatus status = WAITING;
         registration = createRegistration(
                 1L, "user1", "mail@mail.com", "78005553535"
         );
@@ -538,7 +541,7 @@ public class RegistrationServiceImplMockTest {
 
         NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
                 () -> registrationService.updateRegistrationStatus(
-                        userId, registration.getId(), status, registrationCredentials)
+                        userId, registration.getId(), WAITING, registrationCredentials)
         );
 
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",

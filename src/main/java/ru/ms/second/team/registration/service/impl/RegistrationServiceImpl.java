@@ -65,8 +65,8 @@ public class RegistrationServiceImpl implements RegistrationService {
         log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
         EventDto eventDto = findEventOrThrow(userId, creationDto.eventId());
-        String password = updatePassword(creationDto);
-        UserDto author = updateAuthor(creationDto, password);
+        String password = setOrCreatePassword(creationDto);
+        UserDto author = setOrCreateAuthor(creationDto, password);
         checkEventStatus(eventDto);
         Registration registration = registrationMapper.toModel(creationDto);
         registration.setPassword(password);
@@ -253,6 +253,10 @@ public class RegistrationServiceImpl implements RegistrationService {
             }
         });
 
+        return createPasswordAccordingToTheRules(specialCharacterRule);
+    }
+
+    private String createPasswordAccordingToTheRules(CharacterRule specialCharacterRule) {
         List<CharacterRule> rules = Arrays.asList(
                 new CharacterRule(EnglishCharacterData.LowerCase),
                 new CharacterRule(EnglishCharacterData.Digit),
@@ -271,7 +275,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         return userClient.findUserByEmail(credentials);
     }
 
-    private String updatePassword(NewRegistrationDto creationDto) {
+    private String setOrCreatePassword(NewRegistrationDto creationDto) {
         String password;
         if (creationDto.userPassword() != null) {
             password = creationDto.userPassword();
@@ -281,7 +285,7 @@ public class RegistrationServiceImpl implements RegistrationService {
        return password;
     }
 
-    private UserDto updateAuthor(NewRegistrationDto creationDto, String password) {
+    private UserDto setOrCreateAuthor(NewRegistrationDto creationDto, String password) {
         UserDto author;
         if (creationDto.userPassword() != null) {
             author = findUserByEmail(creationDto.email(), password);
@@ -290,11 +294,10 @@ public class RegistrationServiceImpl implements RegistrationService {
             author = userClient.createUser(newUserRequest);
         }
         return author;
-
     }
 
     private void verificationTheUserHasTheRightToChangeStatusOrThrow(Long userId, Long eventId) {
-        if (checkIfUserIsOwnerOrManagerOfEvent(userId, eventId)) {
+        if (!checkIfUserIsOwnerOrManagerOfEvent(userId, eventId)) {
             throw new NotAuthorizedException(String.format(
                     "User id=%d has no rights to change registration status for event id=%d",
                     userId, eventId));

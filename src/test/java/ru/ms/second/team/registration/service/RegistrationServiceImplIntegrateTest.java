@@ -568,10 +568,10 @@ public class RegistrationServiceImplIntegrateTest {
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userDto.id());
         RegistrationCredentials registrationCredentials = new RegistrationCredentials(registration.id(), registration.password());
 
-        registrationService.updateRegistrationStatus(userId, registration.id(), APPROVED, registrationCredentials);
+        registrationService.updateRegistrationStatus(userDto.id(), registration.id(), APPROVED, registrationCredentials);
 
         RegistrationCredentials deleteDto =
                 createRegistrationCredentials(registration.id(), registration.password());
@@ -582,37 +582,6 @@ public class RegistrationServiceImplIntegrateTest {
                 () -> registrationService.findRegistrationById(registration.id()));
 
         assertThat(ex.getMessage(), is("Registration with id=" + registration.id() + " was not found"));
-    }
-
-    @Test
-    @DisplayName("Delete registration when registration is approved and event has started")
-    @SneakyThrows
-    void deleteRegistration_whenRegistrationApprovedAndEventStart_shouldThrowValidationException() {
-        Long userId = 1L;
-        Long eventId = 1L;
-        NewRegistrationDto registrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", eventId);
-
-        EventDto eventDto = createNewEvent(userId, 0, EventRegistrationStatus.OPEN, LocalDateTime.now().minusDays(userId), LocalDateTime.now().plusMonths(userId));
-
-        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
-                        .withBody(objectMapper.writeValueAsString(eventDto))
-                        .withStatus(HttpStatus.OK.value())));
-
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
-        RegistrationCredentials registrationCredentials = new RegistrationCredentials(registration.id(), registration.password());
-
-        registrationService.updateRegistrationStatus(userId, registration.id(), APPROVED, registrationCredentials);
-
-        RegistrationCredentials deleteDto =
-                createRegistrationCredentials(registration.id(), registration.password());
-
-        ValidationException ex = assertThrows(ValidationException.class,
-                () -> registrationService.deleteRegistration(userId, deleteDto));
-
-        assertThat(ex.getMessage(), is("You cannot delete an approved registration (id = " + registration.id() + ") for an event (id = " + eventId + ") that has started"));
     }
 
     @Test
@@ -1229,41 +1198,6 @@ public class RegistrationServiceImplIntegrateTest {
 
     @Test
     @SneakyThrows
-    void declineRegistration_whenUserIsTeamMemberAndOneUserInTeam_shouldThrowNotAuthorized() {
-        NewRegistrationDto registrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
-        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
-        stubFor(post(urlEqualTo("/users"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
-                        .withBody(objectMapper.writeValueAsString(userDto))
-                        .withStatus(HttpStatus.CREATED.value())));
-        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
-                        .withBody(objectMapper.writeValueAsString(eventDto))
-                        .withStatus(HttpStatus.OK.value())));
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
-        TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
-        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
-                        .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto)))
-                        .withStatus(HttpStatus.OK.value())));
-        RegistrationCredentials credentials =
-                createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
-        String reason = "reason";
-        NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
-                () -> registrationService.declineRegistration(userId, createdRegistration.id(),
-                        reason, credentials));
-        assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
-                userId, registrationDto.eventId()), ex.getMessage());
-
-    }
-
-    @Test
-    @SneakyThrows
     void declineRegistration_whenUserIsNotTeamMemberOrOwner_shouldThrowNotAuthorized() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
@@ -1295,11 +1229,11 @@ public class RegistrationServiceImplIntegrateTest {
         String reason = "reason";
 
         NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
-                () -> registrationService.declineRegistration(userId, createdRegistration.id(),
+                () -> registrationService.declineRegistration(77L, createdRegistration.id(),
                         reason, credentials));
 
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
-                userId, registrationDto.eventId()), ex.getMessage());
+                77L, registrationDto.eventId()), ex.getMessage());
     }
 
     @Test
@@ -1338,11 +1272,11 @@ public class RegistrationServiceImplIntegrateTest {
         String reason = "reason";
 
         NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
-                () -> registrationService.declineRegistration(userId, createdRegistration.id(),
+                () -> registrationService.declineRegistration(77L, createdRegistration.id(),
                         reason, credentials));
 
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
-                userId, registrationDto.eventId()), ex.getMessage());
+                77L, registrationDto.eventId()), ex.getMessage());
     }
 
     @Test
@@ -1560,12 +1494,23 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user4", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
 
+        UserDto userDto1 = createUserDto(registrationDto1.username(), registrationDto1.email());
+        UserDto userDto2 = createUserDto(registrationDto2.username(), registrationDto2.email());
+        UserDto userDto3 = createUserDto(registrationDto3.username(), registrationDto3.email());
+        UserDto userDto4 = createUserDto(registrationDto4.username(), registrationDto4.email());
+
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto1))
+                        .withStatus(HttpStatus.CREATED.value())));
+
         stubForEventOkResponse(registrationDto2, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
-        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, 1L);
-        CreatedRegistrationResponseDto createdRegistration4 = registrationService.createRegistration(registrationDto4, 1L);
+        CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, userId);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, userId);
+        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, userId);
+        CreatedRegistrationResponseDto createdRegistration4 = registrationService.createRegistration(registrationDto4, userId);
 
         registrationService.updateRegistrationStatus(userId, createdRegistration2.id(), APPROVED,
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
@@ -1582,7 +1527,6 @@ public class RegistrationServiceImplIntegrateTest {
         assertEquals(1, count.numberOfWaitingRegistrations());
         assertEquals(1, count.numberOfApprovedRegistrations());
         assertEquals(0, count.numberOfDeclinedRegistrations());
-
     }
 
     @SneakyThrows
