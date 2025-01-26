@@ -37,7 +37,6 @@ import ru.ms.second.team.registration.exception.exceptions.ValidationException;
 import ru.ms.second.team.registration.model.RegistrationStatus;
 import ru.ms.second.team.registration.service.impl.RegistrationServiceImpl;
 
-import java.lang.reflect.UndeclaredThrowableException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -150,9 +149,9 @@ public class RegistrationServiceImplIntegrateTest {
         stubFor(post(urlEqualTo("/users/email"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
-                        .withStatus(HttpStatus.BAD_REQUEST.value())));
+                        .withStatus(HttpStatus.NOT_FOUND.value())));
 
-        assertThrows(UndeclaredThrowableException.class, () -> registrationService.createRegistration(registrationDto, userId));
+        assertThrows(NotFoundException.class, () -> registrationService.createRegistration(registrationDto, userId));
     }
 
     @Test
