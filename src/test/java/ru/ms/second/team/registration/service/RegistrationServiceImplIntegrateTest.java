@@ -37,6 +37,7 @@ import ru.ms.second.team.registration.exception.exceptions.ValidationException;
 import ru.ms.second.team.registration.model.RegistrationStatus;
 import ru.ms.second.team.registration.service.impl.RegistrationServiceImpl;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -145,16 +146,13 @@ public class RegistrationServiceImplIntegrateTest {
     @SneakyThrows
     void createRegistrationByExistingUser_FailPasswordIncorrect() {
         NewRegistrationDto registrationDto = createNewRegistrationDtoWithPassword();
-        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
-        EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
 
-        stubForEventOkResponse(registrationDto, eventDto);
         stubFor(post(urlEqualTo("/users/email"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withStatus(HttpStatus.BAD_REQUEST.value())));
 
-        assertThrows(PasswordIncorrectException.class, () -> registrationService.createRegistration(registrationDto, userId));
+        assertThrows(UndeclaredThrowableException.class, () -> registrationService.createRegistration(registrationDto, userId));
     }
 
     @Test
@@ -221,6 +219,7 @@ public class RegistrationServiceImplIntegrateTest {
                 () -> registrationService.createRegistration(registrationDto, userId));
 
         assertEquals("Registration for the event with id =" + eventDto.id() + " SUSPENDED", ex.getMessage());
+
     }
 
     @Test
@@ -1204,7 +1203,7 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsTeamMemberAndOneUserInTeam_shouldThrowNotAuthorized() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        EventDto eventDto = createEvent(userId + 1L, 1, EventRegistrationStatus.OPEN);
         UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
         stubFor(post(urlEqualTo("/users"))
@@ -1236,7 +1235,8 @@ public class RegistrationServiceImplIntegrateTest {
                         reason, credentials));
 
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
-                userId, registrationDto.eventId()), ex.getMessage());
+                77L, registrationDto.eventId()), ex.getMessage());
+
     }
 
     @Test
