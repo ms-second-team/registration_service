@@ -145,7 +145,10 @@ public class RegistrationServiceImplIntegrateTest {
     @SneakyThrows
     void createRegistrationByExistingUser_FailPasswordIncorrect() {
         NewRegistrationDto registrationDto = createNewRegistrationDtoWithPassword();
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
+        EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
 
+        stubForEventOkResponse(registrationDto, eventDto);
         stubFor(post(urlEqualTo("/users/email"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
@@ -1194,6 +1197,46 @@ public class RegistrationServiceImplIntegrateTest {
                 reason, credentials);
 
         assertEquals(DECLINED, updatedStatus);
+    }
+
+    @Test
+    @SneakyThrows
+    void declineRegistration_whenUserIsTeamMemberAndOneUserInTeam_shouldThrowNotAuthorized() {
+        NewRegistrationDto registrationDto =
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+        EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
+
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
+
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
+        TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
+
+        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto)))
+                        .withStatus(HttpStatus.OK.value())));
+
+        RegistrationCredentials credentials =
+                createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
+        String reason = "reason";
+
+        NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
+                () -> registrationService.declineRegistration(77L, createdRegistration.id(),
+                        reason, credentials));
+
+        assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
+                userId, registrationDto.eventId()), ex.getMessage());
     }
 
     @Test

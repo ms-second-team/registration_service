@@ -10,7 +10,7 @@ public class UserClientErrorDecoder implements ErrorDecoder {
     public Exception decode(String s, Response response) {
 
         return switch (response.status()) {
-            case 400 -> new PasswordIncorrectException("Password is incorrect");
+            case 403 -> new PasswordIncorrectException("Password is incorrect");
             case 404 -> new NotFoundException("User was not found");
             default -> new Exception("Unknown error");
         };

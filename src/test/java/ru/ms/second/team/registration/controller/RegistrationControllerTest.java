@@ -165,6 +165,25 @@ public class RegistrationControllerTest {
 
     @Test
     @SneakyThrows
+    @DisplayName("Creation of new registration by existing user failed because password does not contain Lowercase char")
+    void createRegistrationWithPasswordFailInvalidPassword_NoLowercaseChar() {
+        newRegistrationDto =
+                createNewRegistrationDto(
+                        "user1", "email@mail.com", "78005553535", 1L, "8SYMBOLS!");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
+        when(registrationService.createRegistration(newRegistrationDto, userId))
+                .thenReturn(createdRegistrationResponseDto);
+        mvc.perform(post("/registrations")
+                        .content(mapper.writeValueAsString(newRegistrationDto))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
+    }
+
+    @Test
+    @SneakyThrows
     @DisplayName("Creation of new registration by existing user failed because password does not contain special char")
     void createRegistrationWithPasswordFailInvalidPassword_NoSpecialChar() {
         newRegistrationDto =
@@ -627,6 +646,22 @@ public class RegistrationControllerTest {
     void deleteRegistrationFailShortPassword() {
         registrationCredentials = createRegistrationCredentials(1L, "7Symbo!");
         mvc.perform(delete("/registrations")
+                        .content(mapper.writeValueAsString(registrationCredentials))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).deleteRegistration(userId, registrationCredentials);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Registration failed to deleteRegistration due to too long password")
+    void deleteRegistrationFailLongPassword() {
+        registrationCredentials = createRegistrationCredentials(1L, "12345");
+        Long userId = 1L;
+        mvc.perform(delete("/registrations")
+                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)

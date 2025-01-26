@@ -2,10 +2,6 @@ package ru.ms.second.team.registration.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.passay.CharacterData;
-import org.passay.CharacterRule;
-import org.passay.EnglishCharacterData;
-import org.passay.PasswordGenerator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -37,6 +33,7 @@ import ru.ms.second.team.registration.model.RegistrationStatus;
 import ru.ms.second.team.registration.repository.jpa.DeclinedRegistrationRepository;
 import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.RegistrationService;
+import ru.ms.second.team.registration.util.PasswordManager;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -58,6 +55,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final RegistrationMapper registrationMapper;
     private final EventClient eventClient;
     private final UserClient userClient;
+    private final PasswordManager passwordManager = new PasswordManager();
 
     @Override
     @Transactional
@@ -240,33 +238,6 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .build();
     }
 
-    private String createPassword() {
-        CharacterRule specialCharacterRule = new CharacterRule(new CharacterData() {
-            @Override
-            public String getErrorCode() {
-                return "Error occurred while generating password special char";
-            }
-
-            @Override
-            public String getCharacters() {
-                return "!@#$%^&*()-+_";
-            }
-        });
-
-        return createPasswordAccordingToTheRules(specialCharacterRule);
-    }
-
-    private String createPasswordAccordingToTheRules(CharacterRule specialCharacterRule) {
-        List<CharacterRule> rules = Arrays.asList(
-                new CharacterRule(EnglishCharacterData.LowerCase),
-                new CharacterRule(EnglishCharacterData.Digit),
-                new CharacterRule(EnglishCharacterData.UpperCase),
-                specialCharacterRule
-        );
-        PasswordGenerator passwordGenerator = new PasswordGenerator();
-        return passwordGenerator.generatePassword(8, rules);
-    }
-
     private UserDto findUserByEmail(String email, String password) {
         UserCredentials credentials = UserCredentials.builder()
                 .email(email)
@@ -280,7 +251,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         if (creationDto.userPassword() != null) {
             password = creationDto.userPassword();
         } else {
-            password = createPassword();
+            password = passwordManager.createPassword();
         }
        return password;
     }
