@@ -146,10 +146,10 @@ public class RegistrationServiceImplIntegrateTest {
     void createRegistrationByExistingUser_FailPasswordIncorrect() {
         NewRegistrationDto registrationDto = createNewRegistrationDtoWithPassword();
 
-        stubFor(post(urlEqualTo("/users/email"))
+        stubFor(post(urlEqualTo("/users"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
-                        .withStatus(HttpStatus.NOT_FOUND.value())));
+                        .withStatus(HttpStatus.FORBIDDEN.value())));
 
         assertThrows(NotFoundException.class, () -> registrationService.createRegistration(registrationDto, userId));
     }

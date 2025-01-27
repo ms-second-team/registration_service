@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
-import ru.ms.second.team.registration.util.StrongPassword;
 
 @Builder
 @Schema(description = "Registrations credentials")

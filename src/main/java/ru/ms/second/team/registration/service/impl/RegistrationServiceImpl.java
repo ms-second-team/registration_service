@@ -36,7 +36,6 @@ import ru.ms.second.team.registration.service.RegistrationService;
 import ru.ms.second.team.registration.util.PasswordManager;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -55,7 +54,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final RegistrationMapper registrationMapper;
     private final EventClient eventClient;
     private final UserClient userClient;
-    private final PasswordManager passwordManager = new PasswordManager();
+    private final PasswordManager passwordManager;
 
     @Override
     @Transactional
@@ -230,14 +229,6 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .anyMatch(tm -> tm.userId().equals(userId) && tm.role().equals(TeamMemberRole.MANAGER));
     }
 
-    private NewUserRequest generateNewUserRequest(NewRegistrationDto newRegistrationDto, String password) {
-        return NewUserRequest.builder()
-                .name(newRegistrationDto.username())
-                .email(newRegistrationDto.email())
-                .password(password)
-                .build();
-    }
-
     private UserDto findUserByEmail(String email, String password) {
         UserCredentials credentials = UserCredentials.builder()
                 .email(email)
@@ -261,7 +252,11 @@ public class RegistrationServiceImpl implements RegistrationService {
         if (creationDto.userPassword() != null) {
             author = findUserByEmail(creationDto.email(), password);
         } else {
-            NewUserRequest newUserRequest = generateNewUserRequest(creationDto, password);
+            NewUserRequest newUserRequest = NewUserRequest.builder()
+                        .name(creationDto.username())
+                        .email(creationDto.email())
+                        .password(password)
+                        .build();
             author = userClient.createUser(newUserRequest);
         }
         return author;
@@ -295,6 +290,4 @@ public class RegistrationServiceImpl implements RegistrationService {
                             registration.getEventId()));
         }
     }
-
-
 }

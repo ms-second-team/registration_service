@@ -41,6 +41,7 @@ import ru.ms.second.team.registration.model.RegistrationStatus;
 import ru.ms.second.team.registration.repository.jpa.DeclinedRegistrationRepository;
 import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.impl.RegistrationServiceImpl;
+import ru.ms.second.team.registration.util.PasswordManager;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -78,6 +79,9 @@ public class RegistrationServiceImplMockTest {
     private EventClient eventClient;
     @Mock
     private UserClient userClient;
+
+    @Mock
+    private PasswordManager passwordManager;
 
     private UpdateRegistrationDto updateRegistrationDto;
     private UpdatedRegistrationResponseDto updatedRegistrationResponseDto;

@@ -4,12 +4,19 @@ import org.passay.CharacterData;
 import org.passay.CharacterRule;
 import org.passay.EnglishCharacterData;
 import org.passay.PasswordGenerator;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.List;
 
+@Service
 public class PasswordManager {
+    @Value("${password.length}")
+    private int passwordLength;
+
     public String createPassword() {
+
         CharacterRule specialCharacterRule = new CharacterRule(new CharacterData() {
             @Override
             public String getErrorCode() {
@@ -29,6 +36,6 @@ public class PasswordManager {
                 specialCharacterRule
         );
         PasswordGenerator passwordGenerator = new PasswordGenerator();
-        return passwordGenerator.generatePassword(8, rules);
+        return passwordGenerator.generatePassword(passwordLength, rules);
     }
 }
