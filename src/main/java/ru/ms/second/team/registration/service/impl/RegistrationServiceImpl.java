@@ -6,18 +6,22 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.ms.second.team.registration.client.EventClient;
+import ru.ms.second.team.registration.client.event.EventClient;
+import ru.ms.second.team.registration.client.user.UserClient;
 import ru.ms.second.team.registration.dto.event.EventDto;
 import ru.ms.second.team.registration.dto.event.EventRegistrationStatus;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
-import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
-import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
-import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
-import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.RegistrationCount;
-import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.request.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.request.RegistrationCredentials;
+import ru.ms.second.team.registration.dto.registration.request.UpdateRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.response.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.response.RegistrationCount;
+import ru.ms.second.team.registration.dto.registration.response.RegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.user.NewUserRequest;
+import ru.ms.second.team.registration.dto.user.UserCredentials;
+import ru.ms.second.team.registration.dto.user.UserDto;
 import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
@@ -29,8 +33,8 @@ import ru.ms.second.team.registration.model.RegistrationStatus;
 import ru.ms.second.team.registration.repository.jpa.DeclinedRegistrationRepository;
 import ru.ms.second.team.registration.repository.jpa.JpaRegistrationRepository;
 import ru.ms.second.team.registration.service.RegistrationService;
+import ru.ms.second.team.registration.util.PasswordManager;
 
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -49,17 +53,23 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final DeclinedRegistrationRepository declinedRegistrationRepository;
     private final RegistrationMapper registrationMapper;
     private final EventClient eventClient;
+    private final UserClient userClient;
+    private final PasswordManager passwordManager;
 
     @Override
+    @Transactional
     public CreatedRegistrationResponseDto createRegistration(NewRegistrationDto creationDto, Long userId) {
         log.info("RegistrationService: executing createRegistration method. Username {}, email {}, phone {}, eventId {}",
                 creationDto.username(), creationDto.email(), creationDto.phone(), creationDto.eventId());
-
         EventDto eventDto = findEventOrThrow(userId, creationDto.eventId());
+        String password = setOrCreatePassword(creationDto);
+        UserDto author = setOrCreateAuthor(creationDto, password);
         checkEventStatus(eventDto);
         Registration registration = registrationMapper.toModel(creationDto);
-        registration.setPassword(generatePassword());
+        registration.setPassword(password);
+        registration.setAuthorId(author.id());
         registration = registrationRepository.save(registration);
+
         return registrationMapper.toCreatedDto(registration);
     }
 
@@ -67,7 +77,6 @@ public class RegistrationServiceImpl implements RegistrationService {
     public UpdatedRegistrationResponseDto updateRegistration(UpdateRegistrationDto updateDto) {
         log.info("RegistrationService: executing updateRegistration method. Updating registration with id {}, updateDto {}",
                 updateDto.id(), updateDto);
-
         Registration registration = findRegistrationOrThrow(updateDto.id());
         checkPasswordOrThrow(registration.getPassword(), updateDto.password(), updateDto.id());
         registrationMapper.updateRegistration(updateDto, registration);
@@ -78,7 +87,6 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Override
     public RegistrationResponseDto findRegistrationById(Long id) {
         log.debug("RegistrationService: executing findRegistrationById method. Id={}", id);
-
         Registration registration = findRegistrationOrThrow(id);
         return registrationMapper.toRegistrationDto(registration);
     }
@@ -97,7 +105,6 @@ public class RegistrationServiceImpl implements RegistrationService {
     public void deleteRegistration(Long userId, RegistrationCredentials registrationCredentials) {
         log.info("RegistrationService: executing deleteRegistration method. Deleting registration id={}",
                 registrationCredentials.id());
-
         Registration registration = findRegistrationOrThrow(registrationCredentials.id());
         checkPasswordOrThrow(registration.getPassword(), registrationCredentials.password(), registrationCredentials.id());
         checkIfRegistrationCanBeDeleted(userId, registration);
@@ -165,11 +172,6 @@ public class RegistrationServiceImpl implements RegistrationService {
                 "Registration with id=%d was not found", registrationId)));
     }
 
-    private String generatePassword() {
-        SecureRandom random = new SecureRandom();
-        return String.format("%04d", random.nextInt(10000));
-    }
-
     private void updateStatusOfClosestWaitingRegistration(Registration registration) {
         final List<Registration> waitingRegistrationsList = registrationRepository
                 .searchRegistrations(List.of(WAITING), registration.getEventId());
@@ -225,6 +227,39 @@ public class RegistrationServiceImpl implements RegistrationService {
         List<TeamMemberDto> teamMemberDtoList = eventClient.getTeamsByEventId(userId, eventId).getBody();
         return teamMemberDtoList.stream()
                 .anyMatch(tm -> tm.userId().equals(userId) && tm.role().equals(TeamMemberRole.MANAGER));
+    }
+
+    private UserDto findUserByEmail(String email, String password) {
+        UserCredentials credentials = UserCredentials.builder()
+                .email(email)
+                .password(password)
+                .build();
+        return userClient.findUserByEmail(credentials);
+    }
+
+    private String setOrCreatePassword(NewRegistrationDto creationDto) {
+        String password;
+        if (creationDto.userPassword() != null) {
+            password = creationDto.userPassword();
+        } else {
+            password = passwordManager.createPassword();
+        }
+       return password;
+    }
+
+    private UserDto setOrCreateAuthor(NewRegistrationDto creationDto, String password) {
+        UserDto author;
+        if (creationDto.userPassword() != null) {
+            author = findUserByEmail(creationDto.email(), password);
+        } else {
+            NewUserRequest newUserRequest = NewUserRequest.builder()
+                        .name(creationDto.username())
+                        .email(creationDto.email())
+                        .password(password)
+                        .build();
+            author = userClient.createUser(newUserRequest);
+        }
+        return author;
     }
 
     private void verificationTheUserHasTheRightToChangeStatusOrThrow(Long userId, Long eventId) {

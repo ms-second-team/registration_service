@@ -1,4 +1,4 @@
-package ru.ms.second.team.registration.dto.request;
+package ru.ms.second.team.registration.dto.registration.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -31,6 +31,9 @@ public record NewRegistrationDto(
         @Positive
         @NotNull
         @Schema(description = "Event id")
-        Long eventId
+        Long eventId,
+
+        @Schema(description = "User password, if the requester is registered")
+        String userPassword
 ) {
 }

@@ -1,17 +1,14 @@
-package ru.ms.second.team.registration.dto.response;
+package ru.ms.second.team.registration.dto.registration.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import ru.ms.second.team.registration.model.RegistrationStatus;
 
 @Builder
-@Schema(description = "Updated registration")
-public record UpdatedRegistrationResponseDto(
+@Schema(description = "Registration")
+public record RegistrationResponseDto(
 
-        @Schema(description = "Registration id")
-        Long id,
-
-        @Schema(description = "Author's id")
+        @Schema(description = "Author's username")
         String username,
 
         @Schema(description = "Author's email")
@@ -20,7 +17,13 @@ public record UpdatedRegistrationResponseDto(
         @Schema(description = "Author's phone")
         String phone,
 
+        @Schema(description = "Event id")
+        Long eventId,
+
         @Schema(description = "Registration status")
-        RegistrationStatus status
+        RegistrationStatus status,
+
+        @Schema(description = "Author id")
+        Long authorId
 ) {
 }

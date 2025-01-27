@@ -26,10 +26,10 @@ public class ErrorHandler {
     }
 
     @ExceptionHandler(PasswordIncorrectException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
     public ErrorResponse handlePasswordIncorrectException(final PasswordIncorrectException e) {
-        log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
-        return new ErrorResponse(HttpStatus.BAD_REQUEST.toString(), e.getMessage());
+        log.error("{}, {}", HttpStatus.FORBIDDEN, e.getLocalizedMessage());
+        return new ErrorResponse(HttpStatus.FORBIDDEN.toString(), e.getMessage());
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -53,14 +53,14 @@ public class ErrorHandler {
         return new ErrorResponse(HttpStatus.BAD_REQUEST.toString(), e.getLocalizedMessage());
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
         log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());
         return new ErrorResponse(HttpStatus.BAD_REQUEST.getReasonPhrase(), "Unknown status: " + e.getValue());
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleIllegalArgumentException(IllegalArgumentException e) {
         log.error("{}, {}", HttpStatus.BAD_REQUEST, e.getLocalizedMessage());

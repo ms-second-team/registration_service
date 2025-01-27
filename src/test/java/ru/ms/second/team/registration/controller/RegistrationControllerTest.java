@@ -10,13 +10,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
-import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
-import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
-import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.RegistrationCount;
-import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.request.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.request.RegistrationCredentials;
+import ru.ms.second.team.registration.dto.registration.request.UpdateRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.response.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.response.RegistrationCount;
+import ru.ms.second.team.registration.dto.registration.response.RegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.response.UpdatedRegistrationResponseDto;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
 import ru.ms.second.team.registration.model.RegistrationStatus;
@@ -68,16 +68,16 @@ public class RegistrationControllerTest {
     @DisplayName("New registration created successfully")
     void createRegistrationOk() {
         newRegistrationDto =
-                createNewRegistrationDto("user1", "email@mail.com", "78005553535", 1L);
+                createNewRegistrationDto("user1", "email@mail.com", "78005553535", 1L, null);
         CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
         when(registrationService.createRegistration(newRegistrationDto, userId))
                 .thenReturn(createdRegistrationResponseDto);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
-                        .header("X-User-Id", userId)
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("X-User-Id", userId))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.password", is(createdRegistrationResponseDto.password())));
@@ -86,10 +86,146 @@ public class RegistrationControllerTest {
 
     @Test
     @SneakyThrows
+    @DisplayName("New registration by existing user created successfully")
+    void createRegistrationWithPasswordOk() {
+        newRegistrationDto =
+                createNewRegistrationDto(
+                        "user1", "email@mail.com", "78005553535", 1L, "8Symbols!");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
+        when(registrationService.createRegistration(newRegistrationDto, userId))
+                .thenReturn(createdRegistrationResponseDto);
+        mvc.perform(post("/registrations")
+                        .content(mapper.writeValueAsString(newRegistrationDto))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("X-User-Id", userId))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.password", is(createdRegistrationResponseDto.password())));
+        verify(registrationService, times(1)).createRegistration(newRegistrationDto, userId);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Creation of new registration by existing user failed due to blank password")
+    void createRegistrationWithPasswordFailBlankPassword() {
+        newRegistrationDto =
+                createNewRegistrationDto(
+                        "user1", "email@mail.com", "78005553535", 1L, "   ");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
+        when(registrationService.createRegistration(newRegistrationDto, userId))
+                .thenReturn(createdRegistrationResponseDto);
+        mvc.perform(post("/registrations")
+                        .content(mapper.writeValueAsString(newRegistrationDto))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Creation of new registration by existing user failed because password does not contain Numeric char")
+    void createRegistrationWithPasswordFailInvalidPassword_NoNumericChar() {
+        newRegistrationDto =
+                createNewRegistrationDto(
+                        "user1", "email@mail.com", "78005553535", 1L, "Symbols!");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
+        when(registrationService.createRegistration(newRegistrationDto, userId))
+                .thenReturn(createdRegistrationResponseDto);
+        mvc.perform(post("/registrations")
+                        .content(mapper.writeValueAsString(newRegistrationDto))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Creation of new registration by existing user failed because password does not contain Uppercase char")
+    void createRegistrationWithPasswordFailInvalidPassword_NoUppercaseChar() {
+        newRegistrationDto =
+                createNewRegistrationDto(
+                        "user1", "email@mail.com", "78005553535", 1L, "8symbols!");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
+        when(registrationService.createRegistration(newRegistrationDto, userId))
+                .thenReturn(createdRegistrationResponseDto);
+        mvc.perform(post("/registrations")
+                        .content(mapper.writeValueAsString(newRegistrationDto))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Creation of new registration by existing user failed because password does not contain Lowercase char")
+    void createRegistrationWithPasswordFailInvalidPassword_NoLowercaseChar() {
+        newRegistrationDto =
+                createNewRegistrationDto(
+                        "user1", "email@mail.com", "78005553535", 1L, "8SYMBOLS!");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
+        when(registrationService.createRegistration(newRegistrationDto, userId))
+                .thenReturn(createdRegistrationResponseDto);
+        mvc.perform(post("/registrations")
+                        .content(mapper.writeValueAsString(newRegistrationDto))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Creation of new registration by existing user failed because password does not contain special char")
+    void createRegistrationWithPasswordFailInvalidPassword_NoSpecialChar() {
+        newRegistrationDto =
+                createNewRegistrationDto(
+                        "user1", "email@mail.com", "78005553535", 1L, "8Symbols");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
+        when(registrationService.createRegistration(newRegistrationDto, userId))
+                .thenReturn(createdRegistrationResponseDto);
+        mvc.perform(post("/registrations")
+                        .content(mapper.writeValueAsString(newRegistrationDto))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Creation of new registration by existing user failed because password is too short")
+    void createRegistrationWithPasswordFailPasswordTooShort() {
+        newRegistrationDto =
+                createNewRegistrationDto(
+                        "user1", "email@mail.com", "78005553535", 1L, "7Symbo!");
+        CreatedRegistrationResponseDto createdRegistrationResponseDto = createNewRegistrationResponseDto();
+        when(registrationService.createRegistration(newRegistrationDto, userId))
+                .thenReturn(createdRegistrationResponseDto);
+        mvc.perform(post("/registrations")
+                        .content(mapper.writeValueAsString(newRegistrationDto))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).createRegistration(newRegistrationDto, userId);
+    }
+
+    @Test
+    @SneakyThrows
     @DisplayName("Creation Failed due to blank username")
     void createNewRegistrationBlankUsername() {
         newRegistrationDto =
-                createNewRegistrationDto("    ", "email@mail.com", "78005553535", 1L);
+                createNewRegistrationDto("    ", "email@mail.com", "78005553535", 1L, null);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
                         .header("X-User-Id", userId)
@@ -105,10 +241,9 @@ public class RegistrationControllerTest {
     @DisplayName("Creation Failed due to invalid phone number")
     void createNewRegistrationInvalidPhoneNumber() {
         newRegistrationDto =
-                createNewRegistrationDto("user1", "email@mail.com", "7123456", 1L);
+                createNewRegistrationDto("user1", "email@mail.com", "7123456", 1L, null);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
-                        .header("X-User-Id", userId)
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
@@ -121,10 +256,9 @@ public class RegistrationControllerTest {
     @DisplayName("Creation Failed due to invalid email")
     void createNewRegistrationInvalidEmail() {
         newRegistrationDto =
-                createNewRegistrationDto("user1", "mail.com", "78005553535", 1L);
+                createNewRegistrationDto("user1", "mail.com", "78005553535", 1L, null);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
-                        .header("X-User-Id", userId)
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
@@ -137,10 +271,9 @@ public class RegistrationControllerTest {
     @DisplayName("Creation Failed due to event id is not positive")
     void createNewRegistrationEventIdIsZero() {
         newRegistrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 0L);
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 0L, null);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
-                        .header("X-User-Id", userId)
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
@@ -153,7 +286,7 @@ public class RegistrationControllerTest {
     @DisplayName("Creation Failed due to user id is null")
     void createNewRegistrationUserIdIsNull() {
         newRegistrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L, null);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -168,7 +301,7 @@ public class RegistrationControllerTest {
     @DisplayName("Creation Failed due to user id is not positive")
     void createNewRegistrationUserIdIsNonPositive() {
         newRegistrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L, null);
         mvc.perform(post("/registrations")
                         .content(mapper.writeValueAsString(newRegistrationDto))
                         .header("X-User-Id", 0L)
@@ -184,7 +317,7 @@ public class RegistrationControllerTest {
     @DisplayName("Username updated successfully")
     void updateRegistrationOnlyUsername() {
         updateRegistrationDto =
-                createUpdateRegistrationDto("user2", null, null, 1L, "1234");
+                createUpdateRegistrationDto("user2", null, null, 1L, "8Symbols!");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user2", "email@mail.com");
         when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
@@ -205,7 +338,7 @@ public class RegistrationControllerTest {
     @DisplayName("Email updated successfully")
     void updateRegistrationOnlyEmail() {
         updateRegistrationDto =
-                createUpdateRegistrationDto(null, "mail@mail.com", null, 1L, "1234");
+                createUpdateRegistrationDto(null, "mail@mail.com", null, 1L, "8Symbols!");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "mail@mail.com");
         when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
@@ -226,7 +359,7 @@ public class RegistrationControllerTest {
     @DisplayName("Phone updated successfully")
     void updateRegistrationOnlyPhone() {
         updateRegistrationDto =
-                createUpdateRegistrationDto(null, null, "78005553535", 1L, "1234");
+                createUpdateRegistrationDto(null, null, "78005553535", 1L, "8Symbols!");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "email@mail.com");
         when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
@@ -247,7 +380,7 @@ public class RegistrationControllerTest {
     @DisplayName("Username and email updated successfully")
     void updateRegistrationUsernameAndEmail() {
         updateRegistrationDto =
-                createUpdateRegistrationDto("user1", "email@mail.com", null, 1L, "1234");
+                createUpdateRegistrationDto("user1", "email@mail.com", null, 1L, "8Symbols!");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "email@mail.com");
         when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
@@ -268,7 +401,7 @@ public class RegistrationControllerTest {
     @DisplayName("Username and phone updated successfully")
     void updateRegistrationUsernameAndPhone() {
         updateRegistrationDto =
-                createUpdateRegistrationDto("user1", null, "78005553535", 1L, "1234");
+                createUpdateRegistrationDto("user1", null, "78005553535", 1L, "8Symbols!");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "email@mail.com");
         when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
@@ -289,7 +422,7 @@ public class RegistrationControllerTest {
     @DisplayName("Phone and email updated successfully")
     void updateRegistrationEmailAndPhone() {
         updateRegistrationDto = createUpdateRegistrationDto(
-                null, "email@mail.com", "78005553535", 1L, "1234");
+                null, "email@mail.com", "78005553535", 1L, "8Symbols!");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "email@mail.com");
         when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
@@ -310,7 +443,7 @@ public class RegistrationControllerTest {
     @DisplayName("Username, Phone and email updated successfully")
     void updateRegistrationUsernameEmailPhone() {
         updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 1L, "1234");
+                "user1", "email@mail.com", "78005553535", 1L, "8Symbols!");
         updatedRegistrationResponseDto =
                 createUpdateResponseDto("user1", "email@mail.com");
         when(registrationService.updateRegistration(updateRegistrationDto)).thenReturn(updatedRegistrationResponseDto);
@@ -331,37 +464,7 @@ public class RegistrationControllerTest {
     @DisplayName("Update failed due to non positive registration id")
     void updateRegistrationUsernameFailNonPositiveId() {
         updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 0L, "1234");
-        mvc.perform(patch("/registrations")
-                        .content(mapper.writeValueAsString(updateRegistrationDto))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Update failed due to too short password")
-    void updateRegistrationUsernameFailShortPassword() {
-        updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 1L, "123");
-        mvc.perform(patch("/registrations")
-                        .content(mapper.writeValueAsString(updateRegistrationDto))
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-        verify(registrationService, never()).updateRegistration(updateRegistrationDto);
-    }
-
-    @Test
-    @SneakyThrows
-    @DisplayName("Update failed due to too long password")
-    void updateRegistrationUsernameFailLongPassword() {
-        updateRegistrationDto = createUpdateRegistrationDto(
-                "user1", "email@mail.com", "78005553535", 1L, "12345");
+                "user1", "email@mail.com", "78005553535", 0L, "8Symbols!");
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -376,7 +479,7 @@ public class RegistrationControllerTest {
     @DisplayName("Update failed due to blank username")
     void updateRegistrationFailBlankUsername() {
         updateRegistrationDto =
-                createUpdateRegistrationDto("   ", null, null, 1L, "1234");
+                createUpdateRegistrationDto("   ", null, null, 1L, "8Symbols!");
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -391,7 +494,7 @@ public class RegistrationControllerTest {
     @DisplayName("Update failed due to invalid email")
     void updateRegistrationFailInvalidEmail() {
         updateRegistrationDto =
-                createUpdateRegistrationDto(null, "mail.com", null, 1L, "1234");
+                createUpdateRegistrationDto(null, "mail.com", null, 1L, "8Symbols!");
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -406,7 +509,7 @@ public class RegistrationControllerTest {
     @DisplayName("Update failed due to invalid phone number")
     void updateRegistrationFailInvalidPhone() {
         updateRegistrationDto =
-                createUpdateRegistrationDto(null, null, "712345678910", 1L, "1234");
+                createUpdateRegistrationDto(null, null, "712345678910", 1L, "8Symbols!");
         mvc.perform(patch("/registrations")
                         .content(mapper.writeValueAsString(updateRegistrationDto))
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -509,7 +612,7 @@ public class RegistrationControllerTest {
     @SneakyThrows
     @DisplayName("Registration deleted successfully")
     void deleteRegistrationById() {
-        registrationCredentials = createRegistrationCredentials(1L, "1234");
+        registrationCredentials = createRegistrationCredentials(1L, "8Symbols!");
         Long userId = 1L;
         mvc.perform(delete("/registrations")
                         .header("X-User-Id", userId)
@@ -525,7 +628,7 @@ public class RegistrationControllerTest {
     @SneakyThrows
     @DisplayName("Registration failed to deleteRegistration due to non positive id")
     void deleteRegistrationByIdNonPositiveId() {
-        registrationCredentials = createRegistrationCredentials(0L, "1234");
+        registrationCredentials = createRegistrationCredentials(0L, "8Symbols!");
         Long userId = 1L;
         mvc.perform(delete("/registrations")
                         .header("X-User-Id", userId)
@@ -541,10 +644,8 @@ public class RegistrationControllerTest {
     @SneakyThrows
     @DisplayName("Registration failed to deleteRegistration due to too short password")
     void deleteRegistrationFailShortPassword() {
-        registrationCredentials = createRegistrationCredentials(1L, "123");
-        Long userId = 1L;
+        registrationCredentials = createRegistrationCredentials(1L, "7Symbo!");
         mvc.perform(delete("/registrations")
-                        .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .characterEncoding(StandardCharsets.UTF_8)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -571,11 +672,42 @@ public class RegistrationControllerTest {
 
     @Test
     @SneakyThrows
+    @DisplayName("Registration failed to deleteRegistration due to blank password")
+    void deleteRegistrationFailBlankPassword() {
+        registrationCredentials = createRegistrationCredentials(1L, "         ");
+        Long userId = 1L;
+        mvc.perform(delete("/registrations")
+                        .header("X-User-Id", userId)
+                        .content(mapper.writeValueAsString(registrationCredentials))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).deleteRegistration(userId, registrationCredentials);
+    }
+
+    @Test
+    @SneakyThrows
+    @DisplayName("Registration failed to deleteRegistration because password is null")
+    void deleteRegistrationFailInvalidPassword_IsNull() {
+        registrationCredentials = createRegistrationCredentials(1L, null);
+        mvc.perform(delete("/registrations")
+                        .header("X-User-Id", userId)
+                        .content(mapper.writeValueAsString(registrationCredentials))
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+        verify(registrationService, never()).deleteRegistration(userId, registrationCredentials);
+    }
+
+    @Test
+    @SneakyThrows
     @DisplayName("Update registration, valid status")
     void updateRegistrationStatus_whenValidStatus_shouldReturn200() {
         RegistrationStatus status = RegistrationStatus.APPROVED;
         Long registrationId = 34L;
-        registrationCredentials = createRegistrationCredentials(1L, "1234");
+        registrationCredentials = createRegistrationCredentials(1L, "8Symbols!");
 
         when(registrationService.updateRegistrationStatus(userId, registrationId, status, registrationCredentials))
                 .thenReturn(status);
@@ -598,7 +730,7 @@ public class RegistrationControllerTest {
     void updateRegistrationStatus_whenDeclinedStatus_shouldReturn400() {
         RegistrationStatus status = RegistrationStatus.DECLINED;
         Long registrationId = 34L;
-        registrationCredentials = createRegistrationCredentials(1L, "1234");
+        registrationCredentials = createRegistrationCredentials(1L, "8Symbols!");
 
         mvc.perform(patch("/registrations/{registrationId}/status", registrationId)
                         .header("X-User-Id", userId)
@@ -616,7 +748,7 @@ public class RegistrationControllerTest {
     void updateRegistrationStatus_whenRegistrationNotFound_shouldReturn400() {
         RegistrationStatus status = RegistrationStatus.WAITING;
         Long registrationId = 34L;
-        registrationCredentials = createRegistrationCredentials(1L, "1234");
+        registrationCredentials = createRegistrationCredentials(1L, "8Symbols!");
 
 
         when(registrationService.updateRegistrationStatus(userId, registrationId, status, registrationCredentials))
@@ -639,7 +771,7 @@ public class RegistrationControllerTest {
     void updateRegistrationStatus_whenWrongPassword_shouldReturn400() {
         RegistrationStatus status = RegistrationStatus.WAITING;
         Long registrationId = 34L;
-        registrationCredentials = createRegistrationCredentials(1L, "1234");
+        registrationCredentials = createRegistrationCredentials(1L, "8Symbols!");
 
 
         when(registrationService.updateRegistrationStatus(userId, registrationId, status, registrationCredentials))
@@ -650,7 +782,7 @@ public class RegistrationControllerTest {
                         .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
 
         verify(registrationService, times(1)).updateRegistrationStatus(userId, registrationId,
                 status, registrationCredentials);
@@ -712,7 +844,7 @@ public class RegistrationControllerTest {
         String reason = "reason";
         Long registrationId = 34L;
         RegistrationStatus status = RegistrationStatus.DECLINED;
-        registrationCredentials = createRegistrationCredentials(1L, "1234");
+        registrationCredentials = createRegistrationCredentials(1L, "8Symbols!");
 
         when(registrationService.declineRegistration(userId, registrationId, reason, registrationCredentials))
                 .thenReturn(status);
@@ -735,7 +867,7 @@ public class RegistrationControllerTest {
     void declineRegistration_whenRegistrationNotExists_shouldReturn200Status() {
         String reason = "reason";
         Long registrationId = 34L;
-        registrationCredentials = createRegistrationCredentials(1L, "1234");
+        registrationCredentials = createRegistrationCredentials(1L, "8Symbols!");
 
         when(registrationService.declineRegistration(userId, registrationId, reason, registrationCredentials))
                 .thenThrow(NotFoundException.class);
@@ -757,7 +889,7 @@ public class RegistrationControllerTest {
     void declineRegistration_whenWrongPassword_shouldReturn200Status() {
         String reason = "reason";
         Long registrationId = 34L;
-        registrationCredentials = createRegistrationCredentials(1L, "1235");
+        registrationCredentials = createRegistrationCredentials(1L, "8Symbols!");
 
         when(registrationService.declineRegistration(userId, registrationId, reason, registrationCredentials))
                 .thenThrow(PasswordIncorrectException.class);
@@ -767,24 +899,29 @@ public class RegistrationControllerTest {
                         .header("X-User-Id", userId)
                         .content(mapper.writeValueAsString(registrationCredentials))
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
 
         verify(registrationService, times(1)).declineRegistration(userId, registrationId,
                 reason, registrationCredentials);
     }
 
-    private NewRegistrationDto createNewRegistrationDto(String username, String email, String phone, Long eventId) {
+    private NewRegistrationDto createNewRegistrationDto(String username,
+                                                        String email,
+                                                        String phone,
+                                                        Long eventId,
+                                                        String password) {
         return NewRegistrationDto.builder()
                 .email(email)
                 .eventId(eventId)
                 .phone(phone)
                 .username(username)
+                .userPassword(password)
                 .build();
     }
 
     private CreatedRegistrationResponseDto createNewRegistrationResponseDto() {
         return CreatedRegistrationResponseDto.builder()
-                .password("1234")
+                .password("8Symbols!")
                 .id(1L)
                 .build();
     }
@@ -823,4 +960,5 @@ public class RegistrationControllerTest {
                 .email("email@mail.com")
                 .build();
     }
+
 }

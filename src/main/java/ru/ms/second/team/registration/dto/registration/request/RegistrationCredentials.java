@@ -1,4 +1,4 @@
-package ru.ms.second.team.registration.dto.request;
+package ru.ms.second.team.registration.dto.registration.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -17,8 +17,8 @@ public record RegistrationCredentials(
         Long id,
 
         @NotBlank
-        @Size(min = 4, max = 4, message = "Password must contain 4 symbols")
-        @Schema(description = "Author's username")
+        @Size(min = 8, max = 32, message = "Password must contain at least 8 symbols")
+        @Schema(description = "Password")
         String password
 ) {
 }

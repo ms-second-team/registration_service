@@ -1,4 +1,4 @@
-package ru.ms.second.team.registration.client;
+package ru.ms.second.team.registration.client.event;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;

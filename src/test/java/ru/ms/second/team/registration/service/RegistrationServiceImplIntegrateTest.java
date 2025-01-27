@@ -22,13 +22,14 @@ import ru.ms.second.team.registration.dto.event.EventDto;
 import ru.ms.second.team.registration.dto.event.EventRegistrationStatus;
 import ru.ms.second.team.registration.dto.event.TeamMemberDto;
 import ru.ms.second.team.registration.dto.event.TeamMemberRole;
-import ru.ms.second.team.registration.dto.request.NewRegistrationDto;
-import ru.ms.second.team.registration.dto.request.RegistrationCredentials;
-import ru.ms.second.team.registration.dto.request.UpdateRegistrationDto;
-import ru.ms.second.team.registration.dto.response.CreatedRegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.RegistrationCount;
-import ru.ms.second.team.registration.dto.response.RegistrationResponseDto;
-import ru.ms.second.team.registration.dto.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.request.NewRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.request.RegistrationCredentials;
+import ru.ms.second.team.registration.dto.registration.request.UpdateRegistrationDto;
+import ru.ms.second.team.registration.dto.registration.response.CreatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.response.RegistrationCount;
+import ru.ms.second.team.registration.dto.registration.response.RegistrationResponseDto;
+import ru.ms.second.team.registration.dto.registration.response.UpdatedRegistrationResponseDto;
+import ru.ms.second.team.registration.dto.user.UserDto;
 import ru.ms.second.team.registration.exception.exceptions.NotAuthorizedException;
 import ru.ms.second.team.registration.exception.exceptions.NotFoundException;
 import ru.ms.second.team.registration.exception.exceptions.PasswordIncorrectException;
@@ -43,12 +44,13 @@ import java.util.List;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static ru.ms.second.team.registration.model.RegistrationStatus.APPROVED;
 import static ru.ms.second.team.registration.model.RegistrationStatus.DECLINED;
@@ -60,13 +62,14 @@ import static ru.ms.second.team.registration.model.RegistrationStatus.WAITING;
 @Transactional
 @AutoConfigureWireMock(port = 0)
 @TestPropertySource(properties = {
-        "app.event-service.url=localhost:${wiremock.server.port}"
+        "app.event-service.url=localhost:${wiremock.server.port}",
+        "app.user-service.url=localhost:${wiremock.server.port}"
 })
 public class RegistrationServiceImplIntegrateTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16.4-alpine");
 
     @Autowired
     RegistrationServiceImpl registrationService;
@@ -84,24 +87,98 @@ public class RegistrationServiceImplIntegrateTest {
 
     @Test
     @SneakyThrows
-    void createRegistration() {
+    void createRegistrationByNewUser_Success() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
-        stubForEventOkResponse(registrationDto, eventDto);
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto result = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(registrationDto, userId);
+        RegistrationResponseDto registration = registrationService.findRegistrationById(result.id());
 
-        assertNotNull(result.id(), "id can't be null");
-        assertEquals(4, result.password().length());
+        assertThat(result.id(), notNullValue());
+        assertEquals(8, result.password().length());
+        assertThat(registration.authorId(), notNullValue());
+        assertEquals(userDto.id(), registration.authorId());
     }
 
     @Test
     @SneakyThrows
-    void createRegistrationWhenEventNotFound_ShouldThrowNotFoundException() {
+    void createRegistrationByExistingUser_Success() {
+        NewRegistrationDto registrationDto = createNewRegistrationDtoWithPassword();
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
+        EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+
+        stubForEventOkResponse(registrationDto, eventDto);
+        stubFor(post(urlEqualTo("/users/email"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.OK.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
+
+        CreatedRegistrationResponseDto result = registrationService.createRegistration(registrationDto, userId);
+        RegistrationResponseDto registration = registrationService.findRegistrationById(result.id());
+
+        assertThat(result.id(), notNullValue());
+        assertEquals(registrationDto.userPassword(), result.password());
+        assertThat(registration.authorId(), notNullValue());
+        assertEquals(userDto.id(), registration.authorId());
+    }
+
+    @Test
+    @SneakyThrows
+    void createRegistrationByExistingUser_FailPasswordIncorrect() {
+        NewRegistrationDto registrationDto = createNewRegistrationDtoWithPassword();
+
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withStatus(HttpStatus.FORBIDDEN.value())));
+
+        assertThrows(NotFoundException.class, () -> registrationService.createRegistration(registrationDto, userId));
+    }
+
+    @Test
+    @SneakyThrows
+    void createRegistrationByExistingUser_FailEmailNotFound() {
+        NewRegistrationDto registrationDto = createNewRegistrationDtoWithPassword();
+
+        stubFor(post(urlEqualTo("/users/email"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withStatus(HttpStatus.NOT_FOUND.value())));
+
+        assertThrows(NotFoundException.class, () -> registrationService.createRegistration(registrationDto, userId));
+    }
+
+    @Test
+    @SneakyThrows
+    void createRegistrationByNewUserWhenEventNotFound_ShouldThrowNotFoundException() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
+
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
 
         stubForEventNotFoundResponse(registrationDto);
 
@@ -141,6 +218,7 @@ public class RegistrationServiceImplIntegrateTest {
                 () -> registrationService.createRegistration(registrationDto, userId));
 
         assertEquals("Registration for the event with id =" + eventDto.id() + " SUSPENDED", ex.getMessage());
+
     }
 
     @Test
@@ -149,10 +227,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
 
         UpdateRegistrationDto updateUsername = createUpdateRegistrationDto(
                 "user2", null, null, registration.id(), registration.password());
@@ -171,10 +260,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
 
         UpdateRegistrationDto updateEmail = createUpdateRegistrationDto(
                 null, "mail@gmail.com", null, registration.id(), registration.password());
@@ -193,10 +293,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
 
         UpdateRegistrationDto updatePhone = createUpdateRegistrationDto(
                 null, null, "78887776655", registration.id(), registration.password());
@@ -215,10 +326,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
 
         UpdateRegistrationDto failPasswordUpdate = createUpdateRegistrationDto(
                 "this gonna fail", null, null, registration.id(), "fake");
@@ -232,10 +354,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
 
         UpdateRegistrationDto notFoundObject = createUpdateRegistrationDto(
                 "this gonna fail", null, null, registration.id() + 1, registration.password());
@@ -249,14 +382,26 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
+        registrationService.createRegistration(registrationDto, userId);
         stubForEventOkResponse(registrationDto, eventDto);
-        registrationService.createRegistration(registrationDto, 1L);
+        registrationService.createRegistration(registrationDto, userId);
 
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78885553535", 1L);
 
-        CreatedRegistrationResponseDto registration2 = registrationService.createRegistration(registrationDto2, 1L);
+        CreatedRegistrationResponseDto registration2 = registrationService.createRegistration(registrationDto2, userId);
 
         RegistrationResponseDto retrievedRegistration = registrationService.findRegistrationById(registration2.id());
 
@@ -282,10 +427,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 2L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        registrationService.createRegistration(registrationDto, 1L);
+        registrationService.createRegistration(registrationDto, userId);
 
         List<RegistrationResponseDto> oneRegistrationList =
                 registrationService.findAllRegistrationsByEventId(0, 10, 2L);
@@ -304,14 +460,25 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 2L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        registrationService.createRegistration(registrationDto, 1L);
+        registrationService.createRegistration(registrationDto, userId);
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78885553535", 2L);
 
-        registrationService.createRegistration(registrationDto2, 1L);
+        registrationService.createRegistration(registrationDto2, userId);
 
         List<RegistrationResponseDto> registrationsList =
                 registrationService.findAllRegistrationsByEventId(0, 10, 2L);
@@ -325,15 +492,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
-
-        stubForEventOkResponse(registrationDto, eventDto);
-
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
-
         RegistrationCredentials registrationNotExistDeleteDto =
                 createRegistrationCredentials(registration.id() + 1, registration.password());
-
-        assertThrows(NotFoundException.class, () -> registrationService.deleteRegistration(userId, registrationNotExistDeleteDto));
+        assertThrows(NotFoundException.class, () -> registrationService.deleteRegistration(1L, registrationNotExistDeleteDto));
     }
 
     @Test
@@ -345,7 +518,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
 
         RegistrationCredentials wrongPasswordDeleteDto =
                 createRegistrationCredentials(registration.id(), "fail");
@@ -359,10 +532,11 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
 
         RegistrationCredentials deleteDto =
                 createRegistrationCredentials(registration.id(), registration.password());
@@ -382,17 +556,23 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", eventId);
 
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(eventDto))
                         .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
+        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userDto.id());
         RegistrationCredentials registrationCredentials = new RegistrationCredentials(registration.id(), registration.password());
 
-        registrationService.updateRegistrationStatus(userId, registration.id(), APPROVED, registrationCredentials);
+        registrationService.updateRegistrationStatus(userDto.id(), registration.id(), APPROVED, registrationCredentials);
 
         RegistrationCredentials deleteDto =
                 createRegistrationCredentials(registration.id(), registration.password());
@@ -403,37 +583,6 @@ public class RegistrationServiceImplIntegrateTest {
                 () -> registrationService.findRegistrationById(registration.id()));
 
         assertThat(ex.getMessage(), is("Registration with id=" + registration.id() + " was not found"));
-    }
-
-    @Test
-    @DisplayName("Delete registration when registration is approved and event has started")
-    @SneakyThrows
-    void deleteRegistration_whenRegistrationApprovedAndEventStart_shouldThrowValidationException() {
-        Long userId = 1L;
-        Long eventId = 1L;
-        NewRegistrationDto registrationDto =
-                createNewRegistrationDto("user1", "mail@mail.com", "78005553535", eventId);
-
-        EventDto eventDto = createNewEvent(userId, 0, EventRegistrationStatus.OPEN, LocalDateTime.now().minusDays(userId), LocalDateTime.now().plusMonths(userId));
-
-        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
-                        .withBody(objectMapper.writeValueAsString(eventDto))
-                        .withStatus(HttpStatus.OK.value())));
-
-        CreatedRegistrationResponseDto registration = registrationService.createRegistration(registrationDto, userId);
-        RegistrationCredentials registrationCredentials = new RegistrationCredentials(registration.id(), registration.password());
-
-        registrationService.updateRegistrationStatus(userId, registration.id(), APPROVED, registrationCredentials);
-
-        RegistrationCredentials deleteDto =
-                createRegistrationCredentials(registration.id(), registration.password());
-
-        ValidationException ex = assertThrows(ValidationException.class,
-                () -> registrationService.deleteRegistration(userId, deleteDto));
-
-        assertThat(ex.getMessage(), is("You cannot delete an approved registration (id = " + registration.id() + ") for an event (id = " + eventId + ") that has started"));
     }
 
     @Test
@@ -501,11 +650,25 @@ public class RegistrationServiceImplIntegrateTest {
     }
 
     @Test
+    @SneakyThrows
     void createRegistration_whenCreated_statusShouldBePending() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
+        EventDto eventDto = createNewEvent(userId, 0, EventRegistrationStatus.OPEN, LocalDateTime.now().minusMonths(userId), LocalDateTime.now().minusDays(userId));
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
+
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
 
         RegistrationResponseDto result = registrationService.findRegistrationById(createdRegistration.id());
 
@@ -519,10 +682,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
         stubForEventOkResponse(registrationDto, eventDto);
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
@@ -541,10 +715,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId + 1L, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
@@ -570,10 +755,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId + 1L, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
@@ -596,10 +792,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId + 1L, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
@@ -622,10 +829,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId + 1L, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
@@ -650,10 +868,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId + 1L, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         RegistrationStatus newStatus = APPROVED;
@@ -676,10 +905,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
         RegistrationStatus approved = APPROVED;
@@ -687,7 +927,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78005553535", 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, userId);
         RegistrationCredentials credentials2 = createRegistrationCredentials(createdRegistration2.id(),
                 createdRegistration2.password());
 
@@ -706,10 +946,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
         RegistrationStatus approved = APPROVED;
@@ -717,7 +968,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78005553535", 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, userId);
         RegistrationCredentials credentials2 = createRegistrationCredentials(createdRegistration2.id(),
                 createdRegistration2.password());
         registrationService.updateRegistrationStatus(userId, createdRegistration2.id(),
@@ -727,7 +978,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         NewRegistrationDto registrationDto3 =
                 createNewRegistrationDto("user3", "mail2@mail.com", "78005553535", 1L);
-        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, 1L);
+        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, userId);
         RegistrationCredentials credentials3 = createRegistrationCredentials(createdRegistration3.id(),
                 createdRegistration3.password());
 
@@ -747,10 +998,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
         stubForEventNotFoundResponse(registrationDto);
@@ -770,10 +1032,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         String incorrectPassword = "6666";
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), incorrectPassword);
 
@@ -783,7 +1056,7 @@ public class RegistrationServiceImplIntegrateTest {
                 () -> registrationService.updateRegistrationStatus(userId, createdRegistration.id(), newStatus, credentials));
 
         assertEquals("Password=" + incorrectPassword + " for registrationId=" +
-                     createdRegistration.id() + " is not correct", ex.getLocalizedMessage());
+                createdRegistration.id() + " is not correct", ex.getLocalizedMessage());
     }
 
     @Test
@@ -792,10 +1065,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         Long unknownId = 999L;
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
@@ -813,10 +1097,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         String reason = "reason";
 
@@ -831,11 +1126,22 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsTeamManager_shouldSetDeclineStatus() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 1, EventRegistrationStatus.OPEN);
+        EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
 
         stubForTeamMembersOkResponse(registrationDto, List.of(teamMemberDto));
@@ -855,11 +1161,22 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsTeamManagerAndTwoUsersInTeam_shouldSetDeclineStatus() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 1, EventRegistrationStatus.OPEN);
+        EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MANAGER);
         TeamMemberDto teamMemberDto1 =
                 createTeamMember(userId + 2L, registrationDto.eventId(), TeamMemberRole.MEMBER);
@@ -886,24 +1203,39 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId + 1L, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
-        stubForEventOkResponse(registrationDto, eventDto);
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
 
-        stubForTeamMembersOkResponse(registrationDto, List.of(teamMemberDto));
+        stubFor(get(urlEqualTo("/events/teams/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(List.of(teamMemberDto)))
+                        .withStatus(HttpStatus.OK.value())));
 
         RegistrationCredentials credentials =
                 createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         String reason = "reason";
 
         NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
-                () -> registrationService.declineRegistration(userId, createdRegistration.id(),
+                () -> registrationService.declineRegistration(77L, createdRegistration.id(),
                         reason, credentials));
 
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
-                userId, registrationDto.eventId()), ex.getMessage());
+                77L, registrationDto.eventId()), ex.getMessage());
+
     }
 
     @Test
@@ -911,11 +1243,22 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsNotTeamMemberOrOwner_shouldThrowNotAuthorized() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 1, EventRegistrationStatus.OPEN);
+        EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
 
         stubFor(get(urlEqualTo("/events/" + registrationDto.eventId() + "/teams"))
                 .willReturn(aResponse()
@@ -928,11 +1271,11 @@ public class RegistrationServiceImplIntegrateTest {
         String reason = "reason";
 
         NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
-                () -> registrationService.declineRegistration(userId, createdRegistration.id(),
+                () -> registrationService.declineRegistration(77L, createdRegistration.id(),
                         reason, credentials));
 
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
-                userId, registrationDto.eventId()), ex.getMessage());
+                77L, registrationDto.eventId()), ex.getMessage());
     }
 
     @Test
@@ -940,11 +1283,22 @@ public class RegistrationServiceImplIntegrateTest {
     void declineRegistration_whenUserIsTeamMemberAndTwoUsersInTeamAndUserNotAuthorized_shouldThrowNotAuthorized() {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
-        EventDto eventDto = createEvent(userId + 1L, 1, EventRegistrationStatus.OPEN);
+        EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         TeamMemberDto teamMemberDto = createTeamMember(userId, registrationDto.eventId(), TeamMemberRole.MEMBER);
         TeamMemberDto teamMemberDto1 =
                 createTeamMember(userId + 2L, registrationDto.eventId(), TeamMemberRole.MANAGER);
@@ -960,11 +1314,11 @@ public class RegistrationServiceImplIntegrateTest {
         String reason = "reason";
 
         NotAuthorizedException ex = assertThrows(NotAuthorizedException.class,
-                () -> registrationService.declineRegistration(userId, createdRegistration.id(),
+                () -> registrationService.declineRegistration(77L, createdRegistration.id(),
                         reason, credentials));
 
         assertEquals(String.format("User id=%d has no rights to change registration status for event id=%d",
-                userId, registrationDto.eventId()), ex.getMessage());
+                77L, registrationDto.eventId()), ex.getMessage());
     }
 
     @Test
@@ -973,10 +1327,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         String incorrectPassword = "6666";
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), incorrectPassword);
         String reason = "reason";
@@ -985,7 +1350,7 @@ public class RegistrationServiceImplIntegrateTest {
                 () -> registrationService.declineRegistration(userId, createdRegistration.id(), reason, credentials));
 
         assertEquals("Password=" + incorrectPassword + " for registrationId=" +
-                     createdRegistration.id() + " is not correct", ex.getLocalizedMessage());
+                createdRegistration.id() + " is not correct", ex.getLocalizedMessage());
     }
 
     @Test
@@ -994,10 +1359,21 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto =
                 createNewRegistrationDto("user1", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 1, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto.username(), registrationDto.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
         String reason = "reason";
         Long unknownId = 999L;
@@ -1019,7 +1395,18 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto3 =
                 createNewRegistrationDto("user3", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto1.username(), registrationDto1.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto1.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto1, eventDto);
 
         CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, 1L);
@@ -1052,7 +1439,18 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto3 =
                 createNewRegistrationDto("user3", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto1.username(), registrationDto1.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto2.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto2, eventDto);
 
         CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, 1L);
@@ -1084,7 +1482,18 @@ public class RegistrationServiceImplIntegrateTest {
         NewRegistrationDto registrationDto3 =
                 createNewRegistrationDto("user3", "mail@mail.com", "78005553535", 2L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
+        UserDto userDto = createUserDto(registrationDto1.username(), registrationDto1.email());
 
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto))
+                        .withStatus(HttpStatus.CREATED.value())));
+        stubFor(get(urlEqualTo("/events/" + registrationDto2.eventId()))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(eventDto))
+                        .withStatus(HttpStatus.OK.value())));
         stubForEventOkResponse(registrationDto2, eventDto);
 
         CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, 1L);
@@ -1127,12 +1536,23 @@ public class RegistrationServiceImplIntegrateTest {
                 createNewRegistrationDto("user4", "mail@mail.com", "78005553535", 1L);
         EventDto eventDto = createEvent(userId, 0, EventRegistrationStatus.OPEN);
 
+        UserDto userDto1 = createUserDto(registrationDto1.username(), registrationDto1.email());
+        UserDto userDto2 = createUserDto(registrationDto2.username(), registrationDto2.email());
+        UserDto userDto3 = createUserDto(registrationDto3.username(), registrationDto3.email());
+        UserDto userDto4 = createUserDto(registrationDto4.username(), registrationDto4.email());
+
+        stubFor(post(urlEqualTo("/users"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
+                        .withBody(objectMapper.writeValueAsString(userDto1))
+                        .withStatus(HttpStatus.CREATED.value())));
+
         stubForEventOkResponse(registrationDto2, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
-        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, 1L);
-        CreatedRegistrationResponseDto createdRegistration4 = registrationService.createRegistration(registrationDto4, 1L);
+        CreatedRegistrationResponseDto createdRegistration1 = registrationService.createRegistration(registrationDto1, userId);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, userId);
+        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, userId);
+        CreatedRegistrationResponseDto createdRegistration4 = registrationService.createRegistration(registrationDto4, userId);
 
         registrationService.updateRegistrationStatus(userId, createdRegistration2.id(), APPROVED,
                 new RegistrationCredentials(createdRegistration2.id(), createdRegistration2.password()));
@@ -1161,7 +1581,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
         RegistrationStatus approved = APPROVED;
@@ -1169,7 +1589,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78005553535", 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, userId);
         RegistrationCredentials credentials2 = createRegistrationCredentials(createdRegistration2.id(),
                 createdRegistration2.password());
 
@@ -1197,7 +1617,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         stubForEventOkResponse(registrationDto, eventDto);
 
-        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, 1L);
+        CreatedRegistrationResponseDto createdRegistration = registrationService.createRegistration(registrationDto, userId);
         RegistrationCredentials credentials = createRegistrationCredentials(createdRegistration.id(), createdRegistration.password());
 
         RegistrationStatus approved = APPROVED;
@@ -1205,7 +1625,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         NewRegistrationDto registrationDto2 =
                 createNewRegistrationDto("user2", "mail2@mail.com", "78005553535", 1L);
-        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, 1L);
+        CreatedRegistrationResponseDto createdRegistration2 = registrationService.createRegistration(registrationDto2, userId);
         RegistrationCredentials credentials2 = createRegistrationCredentials(createdRegistration2.id(),
                 createdRegistration2.password());
 
@@ -1216,7 +1636,7 @@ public class RegistrationServiceImplIntegrateTest {
 
         NewRegistrationDto registrationDto3 =
                 createNewRegistrationDto("user3", "mail3@mail.com", "78005553535", 1L);
-        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, 1L);
+        CreatedRegistrationResponseDto createdRegistration3 = registrationService.createRegistration(registrationDto3, userId);
         RegistrationCredentials credentials3 = createRegistrationCredentials(createdRegistration3.id(),
                 createdRegistration3.password());
 
@@ -1249,6 +1669,16 @@ public class RegistrationServiceImplIntegrateTest {
                 .eventId(eventId)
                 .phone(phone)
                 .username(username)
+                .build();
+    }
+
+    private NewRegistrationDto createNewRegistrationDtoWithPassword() {
+        return NewRegistrationDto.builder()
+                .email("mail@mail.com")
+                .eventId(1L)
+                .phone("78005553535")
+                .username("user1")
+                .userPassword("8Symbols!")
                 .build();
     }
 
@@ -1308,5 +1738,14 @@ public class RegistrationServiceImplIntegrateTest {
                         .withHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType())
                         .withBody(objectMapper.writeValueAsString(teamMembers))
                         .withStatus(HttpStatus.OK.value())));
+    }
+
+    private UserDto createUserDto(String name, String email) {
+        return UserDto.builder()
+                .id(1L)
+                .name(name)
+                .email(email)
+                .password("8Symbols!")
+                .build();
     }
 }
